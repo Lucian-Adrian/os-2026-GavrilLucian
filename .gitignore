@@ -1,0 +1,17 @@
+# TeX and LaTeX intermediate compilation artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.xdv
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Python bytecode and caches
+__pycache__/
+*.pyc
+
+# OS generated files
+.DS_Store
+Thumbs.db

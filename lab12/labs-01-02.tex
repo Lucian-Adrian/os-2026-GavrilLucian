@@ -1,0 +1,546 @@
+\documentclass{../../../report-template/shared/utmreport}
+
+\usepackage{booktabs,amssymb,float}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{../../../report-template/shared/assets/UTM_Logo_English.jpeg}
+
+\institution{Technical University of Moldova}
+
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+
+\department{Department of Software Engineering}
+
+\studyprogramme{Software Engineering Study Programme}
+
+\documenttype{Laboratory report}
+
+\reporttitle{Operating Systems Laboratories 1 and 2}
+
+\reportsubtitle{Linux Resource Management and xv6 System Calls}
+
+\student{Lucian-Adrian Gavril}{FAF-241}
+
+\supervisor{Reițman Patricia}{}
+
+\cityyear{Chișinău}{2026}
+
+\begin{document}
+\makeutmreporttitlepage
+\tableofcontents
+\clearpage
+
+\begin{utmabstract}[Abstract]
+These two laboratory exercises examine operating systems from complementary sides. Laboratory 1 observes a Linux virtual machine managing files, processes, memory, and devices through standard command-line tools. Laboratory 2 builds and boots xv6 on emulated RISC-V hardware, explores its shell and user/kernel source split, and adds a small user program that invokes the existing \texttt{sleep} system call. The report explains what each command or source change demonstrates, how the system-call path connects an application to kernel code, and how to interpret the resulting evidence. Live readings and xv6 results come from a dedicated Ubuntu VM created for these labs; code explanations are tied to the pinned source revision.
+
+\utmkeywords{operating systems, linux, xv6, system calls, process management}\end{utmabstract}
+
+\utmintroduction
+The two labs use different methods to study the same subject [1, 2]. In Lab 1, Linux is treated as a working system whose state can be inspected from the terminal. In Lab 2, xv6 is small enough to build, boot, and read as source code. Together they connect observed behavior to the code that implements it.
+
+The report separates three kinds of statements:
+\begin{utmenumerate}
+\item command and kernel output copied from the dedicated lab VM;
+\item explanations of what those observations mean;
+\item source-code facts tied to the pinned xv6 revision.
+\end{utmenumerate}
+
+The report uses the adapted ELSE report class [3]. The class supplies English labels and the mandatory report layout.
+
+The experimental observations were recorded on 28 September 2026. Lab 1 terminal values come from the saved VM transcript [4]. Lab 2 build, boot, shell, and timing results come from the saved run and timing logs [5]. This revision changes presentation and explanation; it does not introduce a new execution or new timing samples.
+
+The Linux observations and xv6 runtime results below were captured from Proxmox VM 204, created from an Ubuntu 24.04 cloud image for these labs. It was not the preconfigured course VM mentioned in the handouts. Source-code explanations refer to the pinned xv6 checkout used for the build.
+
+\chapter{Laboratory 1: the OS as a resource manager}
+
+\section{Command-to-observation guide}
+
+The commands are user-space tools. They request information from the kernel through system calls or read kernel-provided interfaces such as \texttt{/proc}; the output is a view of state managed by the OS. Table \ref{tab:lab1-observations} links each command group to the evidence to save and the operating-system concept it illustrates.
+
+\begin{table}[htbp]
+\caption{Lab 1 command-to-observation guide}
+\label{tab:lab1-observations}
+\centering
+\small
+\begin{tabularx}{\textwidth}{|p{2.3cm}|p{4.3cm}|Y|}
+\hline
+\textbf{Resource} & \textbf{Commands} & \textbf{Record and explain} \\
+\hline
+VM context & \texttt{whoami}, \texttt{uname -a}, \texttt{cat /etc/os-release}, \texttt{uptime} & Record the account, Ubuntu release, kernel and architecture string, and uptime. These identify which running system produced later measurements. \\
+\hline
+Files & \texttt{pwd}, \texttt{ls -la /}, \texttt{ls -l note.txt}, \texttt{chmod 600 note.txt} & Record the owner, group, mode, and two root directories. Explain how a name maps into the tree and how the kernel checks permission bits on access. \\
+\hline
+Processes & \texttt{ps aux | wc -l}, \texttt{ps -p 1 -o pid,ppid,comm,args}, \texttt{sleep 300 \&}, \texttt{/proc/PID/status}, \texttt{kill PID} & Record PID 1, the approximate count, and the sleep state. Explain that the kernel creates and schedules processes; \texttt{/proc} exposes live kernel state through a file-like interface. \\
+\hline
+Memory & \texttt{free -h}, \texttt{/proc/meminfo}, \texttt{VmRSS} & Record total, free and available RAM, swap totals, and the sleep process RSS. Explain system-wide accounting versus the resident pages of one process. \\
+\hline
+Devices and storage & \texttt{df -h}, \texttt{lsblk}, \texttt{ls -l /dev | head}, \texttt{mount | head} & Record the root mount source, a block-device relation, and one device node. Explain the difference between a device, a filesystem, and the path where that filesystem is mounted. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Environment and identity}
+
+The first commands establish which account and kernel are being observed and provide basic context about the machine's uptime:
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Initial Linux environment check}]
+whoami
+uname -a
+uptime
+\end{lstlisting}
+\end{minipage}\par
+
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Observed lab VM identity and kernel}]
+$ whoami
+ubuntu
+
+$ uname -a
+Linux ubuntu 6.8.0-136-generic #136-Ubuntu SMP PREEMPT_DYNAMIC Wed Jul 1 21:53:05 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+$ uptime
+14:24:47 up 21 min, 0 user, load average: 0.00, 0.00, 0.00
+
+$ cat /etc/os-release
+PRETTY_NAME="Ubuntu 24.04.4 LTS (Noble Numbat)"
+
+$ pwd
+/home/ubuntu/os-lab1
+
+$ ls -la /
+drwxr-xr-x 107 root root 4096 Sep 28 14:04 etc
+drwxr-xr-x  12 root root 4096 Aug  1 12:54 usr
+\end{lstlisting}
+\end{minipage}\par
+
+
+The VM is Ubuntu 24.04.4 LTS, running the x86-64 Linux kernel shown above. These values identify the environment for the observations in this chapter.
+
+This context matters because command results such as process count, free memory, and device names depend on the particular VM image and its current state. A useful oral explanation is: \texttt{whoami} identifies the current account, \texttt{uname} describes the kernel serving it, and \texttt{uptime} gives a snapshot of how long that kernel has been running.
+
+\section{Files, directories, ownership, and permissions}
+
+Linux presents files in a directory tree rooted at \texttt{/}. The lab creates a working directory, writes a text file, copies it, renames the copy, and removes the renamed file. The commands make changes to directory entries and file contents through the same file-system interface used by ordinary programs. The command names are not the kernel: utilities such as \texttt{cp}, \texttt{mv}, and \texttt{rm} run as user-space programs and ask the kernel to read, create, rename, or unlink entries.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={File operations and permission inspection}]
+mkdir -p ~/os-lab1
+cd ~/os-lab1
+mkdir demo && cd demo
+echo "hello operating systems" > note.txt
+cp note.txt copy.txt
+mv copy.txt renamed.txt
+ls -l
+rm renamed.txt
+ls -l note.txt
+chmod 600 note.txt
+ls -l note.txt
+chmod 644 note.txt
+\end{lstlisting}
+\end{minipage}\par
+
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Selected output showing file owner, group, and mode}]
+$ ls -l
+total 8
+-rw-r--r-- 1 ubuntu ubuntu 24 Sep 28 14:24 note.txt
+-rw-r--r-- 1 ubuntu ubuntu 24 Sep 28 14:24 renamed.txt
+$ rm renamed.txt
+$ ls -l note.txt
+-rw-r--r-- 1 ubuntu ubuntu 24 Sep 28 14:24 note.txt
+$ chmod 600 note.txt
+$ ls -l note.txt
+-rw------- 1 ubuntu ubuntu 24 Sep 28 14:24 note.txt
+$ stat -c %U\ %G\ %a\ %n note.txt
+ubuntu ubuntu 600 note.txt
+\end{lstlisting}
+\end{minipage}\par
+
+
+\begin{utmenumerate}
+\item The file owner is \texttt{ubuntu}; its group is \texttt{ubuntu}. The owner and group columns in \texttt{ls -l} show which identity the permission bits apply to.
+\item For a regular file, mode 600 is expected to display as \texttt{-rw-------}. The first character identifies the file type. The next three characters are owner permissions, the next three are group permissions, and the last three are permissions for other users. The actual listing must be checked because it is the evidence for this VM.
+\item Two directories observed directly under \texttt{/} are \texttt{/etc}, which holds system-wide configuration, and \texttt{/usr}, which holds installed programs, libraries, and shared data. Both appear in the captured root listing.
+\end{utmenumerate}
+
+The numeric mode is an octal encoding of three permission sets. Each digit is a sum of read (4), write (2), and execute (1). In 600, the owner digit 6 means read plus write (4 + 2); the group and other digits are 0. In 644, the owner keeps read and write, while group and others receive read access. The lab restores the file to mode 644 after checking mode 600. The change demonstrates that access control is metadata the OS enforces for file operations. The leading dash in \texttt{-rw-------} says this is a regular file; a directory begins with \texttt{d}. The three permission triplets always belong to owner, group, and other users in that order.
+
+\section{Processes and the \texttt{/proc} view}
+
+A process is a running instance of a program with an identifier, execution state, memory mappings, and open resources. A source file is not a process: the source is compiled into an executable, and the kernel creates a process when that executable is started. The lab first lists processes, then starts a long-running \texttt{sleep} process in the background so it can be identified and inspected while it exists.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Process discovery and state inspection}]
+ps aux | head
+ps aux | wc -l
+ps -p 1 -o pid,comm,args
+sleep 300 &
+PID=$!
+ps -p "$PID" -o pid,stat,comm,args
+grep -E '^(Name|State|VmRSS):' /proc/$PID/status
+kill "$PID"
+\end{lstlisting}
+\end{minipage}\par
+
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Observed PID 1, process count, and sleep state}]
+$ ps aux | wc -l
+103
+
+$ ps -p 1 -o pid,ppid,comm,args
+    PID    PPID COMMAND         COMMAND
+      1       0 systemd         /sbin/init
+
+$ ps -ef | grep "[s]leep"
+ubuntu 1784 1750 0 14:24 ? 00:00:00 sleep 300
+
+$ grep -E '^(Name|State|Pid|VmRSS|Threads):' /proc/1784/status
+Name:   sleep
+State:  S (sleeping)
+Pid:    1784
+VmRSS:  1964 kB
+Threads: 1
+\end{lstlisting}
+\end{minipage}\par
+
+
+\begin{utmenumerate}
+\item Process 1 has PID 1 and runs \texttt{systemd}, also invoked as \texttt{/sbin/init}. It is the first user-space process, started by the kernel, and manages system services.
+\item The idle process listing returned 103 lines. Since \texttt{ps aux} prints a header, this corresponds to about 102 listed processes at that instant. Process state changes while the VM runs, so treat the count as a snapshot.
+\item The sleeping process state is \texttt{S (sleeping)}. The kernel scheduler has put the process in an interruptible wait until its timer expires or another event occurs; it is not continuously consuming a CPU core.
+\end{utmenumerate}
+
+The process directory under \texttt{/proc} is a pseudo-file-system: reading its entries asks the kernel to expose information about live processes. It is not an ordinary directory of stored files on disk. This is one example of Linux making kernel-managed state inspectable through a file-like interface. PID 1 is the first user-space process started by the kernel and commonly manages system services; this VM identifies it as \texttt{systemd}. The shell's background marker returns control to the prompt, and \texttt{\$!} stores the last background PID. \texttt{kill} sends a signal, SIGTERM by default, asking the target process to stop.
+
+\section{Memory}
+
+\texttt{free -h} summarizes memory at the VM level. The per-process \texttt{VmRSS} field reports resident memory, meaning pages of that process currently present in physical RAM. The value can vary with kernel version, process startup, and measurement timing. The \texttt{free} column counts currently unused memory, while \texttt{available} estimates how much can be given to new work without swapping, including memory reclaimable from caches. They answer different questions. Swap is backing storage, not extra physical RAM, and accessing it is slower than accessing resident RAM.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Memory totals and one process's resident set}]
+free -h
+grep -E '^(MemTotal|MemFree|SwapTotal|SwapFree):' /proc/meminfo
+sleep 300 &
+PID=$!
+grep '^VmRSS:' /proc/$PID/status
+kill "$PID"
+\end{lstlisting}
+\end{minipage}\par
+
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Observed memory totals and resident set}]
+$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:           3.8Gi       407Mi       3.0Gi       976Ki       614Mi       3.4Gi
+Swap:             0B          0B          0B
+
+$ grep VmRSS /proc/1797/status
+VmRSS: 1968 kB
+\end{lstlisting}
+\end{minipage}\par
+
+
+\begin{utmenumerate}
+\item The VM reports 3.8 GiB total RAM, 3.0 GiB free, and 3.4 GiB available. The \texttt{free} column counts currently unused memory, while \texttt{available} estimates how much can be given to new work without swapping, including memory reclaimable from caches.
+\item Swap is disk-backed space the kernel may use to hold memory pages that are not currently resident in RAM. This VM has no swap configured: total and free swap both show 0 B.
+\item The bare \texttt{sleep} process had a resident set of 1968 kB in this capture; an earlier capture measured 1964 kB. It is small because the program waits rather than allocating a large application data set. RSS can differ slightly between observations because process startup and memory accounting are sampled at a particular time.
+\end{utmenumerate}
+
+\section{Devices and storage}
+
+\texttt{df} reports mounted filesystems and their capacity. \texttt{lsblk} shows block devices and their relationships. \texttt{/dev} contains device nodes through which programs can use device drivers. These commands expose different layers: a filesystem is mounted on a path, while a block device may provide the storage beneath it. The \texttt{/} row in \texttt{df -h} identifies which filesystem serves the root path, \texttt{lsblk} shows disks and partitions, and \texttt{mount} shows filesystem-to-path attachments.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Mounted storage and device interfaces}]
+df -h
+lsblk
+ls -l /dev | head
+mount | head
+\end{lstlisting}
+\end{minipage}\par
+
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Observed root filesystem and device node}]
+$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        19G  1.9G   17G  11% /
+
+$ lsblk
+sda       20G  disk
+sda1      19G  part /
+
+$ ls -l /dev | head
+total 0
+crw-r--r-- 1 root root 10, 235 Sep 28 14:03 autofs
+drwxr-xr-x 2 root root 320 Sep 28 14:03 block
+drwxr-xr-x 2 root root 80 Sep 28 14:03 bsg
+crw-rw---- 1 root disk 10, 234 Sep 28 14:03 btrfs-control
+drwxr-xr-x 3 root root 60 Sep 28 14:03 bus
+lrwxrwxrwx 1 root root 3 Sep 28 14:03 cdrom -> sr0
+drwxr-xr-x 2 root root 3360 Sep 28 14:03 char
+crw--w---- 1 root tty 5, 1 Sep 28 14:03 console
+lrwxrwxrwx 1 root root 11 Sep 28 14:03 core -> /proc/kcore
+
+$ mount | head
+sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime)
+proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)
+udev on /dev type devtmpfs (rw,nosuid,relatime,size=1985472k,nr_inodes=496368,mode=755,inode64)
+\end{lstlisting}
+\end{minipage}\par
+
+
+\begin{utmenumerate}
+\item The root filesystem at \texttt{/} is mounted from \texttt{/dev/sda1}, according to \texttt{df}. The \texttt{lsblk} output shows that \texttt{sda1} is a partition on the 20 GiB \texttt{sda} virtual disk.
+\item The observed \texttt{/dev/console} is a character device that provides the system console interface. Its leading \texttt{c} in \texttt{ls -l} distinguishes it from a regular file; the major and minor numbers \texttt{5, 1} route access to its kernel driver.
+\item In this context, “everything is a file” means many resources, including device interfaces and kernel-provided information, can be accessed through familiar file operations and paths. It is a useful interface idea, not a claim that every OS resource is literally a regular disk file.
+\end{utmenumerate}
+
+\section{Lab 1 synthesis}
+
+The VM showed four resource-management roles. Filesystem commands such as \texttt{ls -l} exposed names, ownership, and access permissions. Process commands such as \texttt{ps} and \texttt{/proc} exposed running work and its state. \texttt{free -h} showed memory and swap accounting. \texttt{df}, \texttt{lsblk}, and \texttt{/dev} showed mounted storage and device interfaces. The outputs recorded above are the evidence; the explanations connect each output to the OS responsibility it demonstrates.
+
+\chapter{Laboratory 2: meet the OS you will build}
+
+\section{Command-to-observation guide}
+
+Here the commands cross layers. The handout's \texttt{make qemu} target builds the kernel, user programs, and xv6 disk image, then launches the RISC-V machine in QEMU. Our automated runner performed the corresponding build and launch as two explicit steps so it could capture serial output and command timings. Once the xv6 shell appears, its prompt is a shell running inside the guest OS. Table \ref{tab:lab2-observations} shows what each step demonstrates.
+
+\begin{table}[htbp]
+\caption{Lab 2 command-to-observation guide}
+\label{tab:lab2-observations}
+\centering
+\small
+\begin{tabularx}{\textwidth}{|p{3.5cm}|p{4.5cm}|Y|}
+\hline
+\textbf{Action or command} & \textbf{Record} & \textbf{What it demonstrates} \\
+\hline
+Build and launch, equivalent to \texttt{make qemu} & PASS: build 2.158 s; guest shell ready 2.459 s after QEMU start & Boot messages include \texttt{xv6 kernel is booting} and \texttt{init: starting sh}. The prompt shows that the kernel started the first user process and the shell is accepting commands. \\
+\hline
+\texttt{ls}, \texttt{cat README}, \texttt{echo}, \texttt{wc README} & PASS: \texttt{ls} listed \texttt{sleep}; echo printed \texttt{hello xv6}; \texttt{wc} returned 48 lines, 334 words, and 2425 bytes & The filesystem image contains executable user programs and a README file; the shell locates and starts programs. \\
+\hline
+\texttt{ls | grep c} & PASS: output contained \texttt{cat}, \texttt{echo}, \texttt{wc}, and \texttt{console} & The shell connects two processes through a kernel pipe so the second program reads the first program's output. \\
+\hline
+Inspect \texttt{user/cat.c} and \texttt{kernel/sysfile.c} & Source: \texttt{sys\_read} is at \texttt{kernel/sysfile.c:69} in the pinned checkout & The user program asks for a service; the kernel handler implements the privileged side of that service. \\
+\hline
+\texttt{sleep 10}; \texttt{sleep} & PASS: \texttt{sleep 10} returned after 0.958 s; \texttt{sleep} printed \texttt{usage: sleep <ticks>} and returned to the prompt & One call exercises the existing timer service. The other checks the user program's argument validation and error path. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{xv6 build and boot}
+
+xv6 is a small Unix-like teaching operating system for RISC-V. The lab builds the kernel and user programs, then starts them on emulated hardware with QEMU. The emulator provides a virtual RISC-V machine; xv6 still has to initialize its kernel, devices, file system, and first user process. There are two OS environments during this exercise: the Ubuntu host runs the compiler, \texttt{make}, and QEMU; the xv6 guest runs inside the emulator. After the xv6 prompt appears, commands are being handled by xv6. The QEMU exit sequence returns to the Ubuntu host.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={The handout command and the equivalent automated build}]
+# Handout's interactive command: make qemu
+# Actual automated build:
+make -C /home/ubuntu/os-lab2-run/xv6-riscv -j2 kernel/kernel fs.img
+\end{lstlisting}
+\end{minipage}\par
+
+
+After that build, the runner launched \texttt{qemu-system-riscv64} with the compiled kernel and \texttt{fs.img}, connected its serial console to a pipe, and sent the required xv6 commands. The exact QEMU arguments are preserved in the runner script and timing record [5]. The interactive \texttt{make qemu} target itself was not invoked in this measured run.
+
+The build completed in 2.158 seconds. QEMU started the xv6 guest, and the shell became ready 2.459 seconds after QEMU launch. This distinguishes a successful compile from a successful boot: the \texttt{init: starting sh} message and guest prompt show that the kernel started the first user process.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Captured xv6 boot sequence}]
+Build elapsed seconds: 2.158
+xv6 kernel is booting
+hart 1 starting
+hart 2 starting
+init: starting sh
+$
+\end{lstlisting}
+\end{minipage}\par
+
+
+QEMU is exited with Ctrl-A followed by X when working interactively, as stated in the assignment. In the automated run, QEMU was terminated after all requested shell commands passed.
+
+The local source tree is pinned to xv6-riscv commit \texttt{9374395cd3dc} [6]. This revision provides the \texttt{sleep(ticks)} system call required by the handout. A newer upstream revision renamed that call to \texttt{pause(ticks)}, which would not match the exercise without adapting its source.
+
+\section{Using xv6 as a Unix system}
+
+At the xv6 prompt, the handout runs programs such as \texttt{ls}, \texttt{cat}, \texttt{echo}, and \texttt{wc}, and demonstrates a pipeline. The shell parses each command, starts the relevant user program, connects file descriptors when a pipe is present, and waits for child processes to finish.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Example xv6 shell commands from the assignment}]
+ls
+cat README
+echo hello xv6
+ls | grep c
+wc README
+\end{lstlisting}
+\end{minipage}\par
+
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Captured xv6 shell command results}]
+$ ls
+README         2 2 2425
+cat            2 3 35176
+echo           2 4 34096
+grep           2 6 42520
+sleep          2 14 33824
+wc             2 18 36128
+console        3 23 0
+
+$ cat README
+xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
+Version 6 (v6). xv6 loosely follows the structure and style of v6,
+...
+
+$ echo hello xv6
+hello xv6
+
+$ ls | grep c
+cat            2 3 35176
+echo           2 4 34096
+wc             2 18 36128
+console        3 23 0
+
+$ wc README
+48 334 2425 README
+\end{lstlisting}
+\end{minipage}\par
+
+
+The listing above keeps the entries relevant to the exercise; the full \texttt{ls} and \texttt{cat README} output is in the run log. All five shell commands completed with a passing check.
+
+Three programs included in the image are \texttt{ls}, \texttt{cat}, and \texttt{echo}. A pipe requires processes that can run the producer and consumer, plus a kernel-managed communication channel that transfers bytes from one process to the other. In \texttt{user/sh.c}, the shell creates processes, connects their file descriptors to the pipe, and starts the commands. The pipe buffer lives in the kernel, so the producer can write while the consumer reads. Compared with Linux, xv6's shell provides a much smaller command environment, while the Linux shell has access to a full distribution and a broader set of programs. The familiar command names are separate user-space applications in both systems; the shell coordinates them, and the kernel supplies process and pipe services.
+
+\section{Reading user and kernel code}
+
+The xv6 source separates ordinary programs from privileged operating-system code. Files in \texttt{user/} contain programs such as \texttt{cat}; files in \texttt{kernel/} implement scheduling, memory, file systems, devices, traps, and system calls. A user program requests a service through a system-call interface, and the kernel validates and performs that request. The source file itself is not what the shell executes. The compiler turns a user C file into a RISC-V executable, \texttt{UPROGS} tells the build to include it, and \texttt{mkfs} packs that executable into \texttt{fs.img}. When the shell starts the command, xv6 loads that executable as a user process.
+
+\begin{longtable}{|p{3.0cm}|p{4.2cm}|p{7.2cm}|}
+\caption{Distinguishing source code, user applications, and kernel code}
+\label{tab:source-application-kernel}\\
+\hline
+\textbf{Path or symbol} & \textbf{What it is} & \textbf{How to explain it} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Path or symbol} & \textbf{What it is} & \textbf{How to explain it} \\
+\hline
+\endhead
+\texttt{user/}\newline\texttt{sleep.c} & C source for a user program & This is a text file edited by the student. It becomes executable code only after the build compiles and links it. \\
+\hline
+\texttt{user/}\newline\texttt{user.h} & User-side function declaration & It tells C code that \texttt{sleep(int)} exists and accepts a tick count. A declaration describes the interface; it does not implement the kernel service. \\
+\hline
+\texttt{user/}\newline\texttt{usys.pl} and generated \texttt{usys.S} & System-call entry stub & The build runs the Perl script to generate a small assembly wrapper. The wrapper places the system-call number where xv6 expects it and executes the RISC-V \texttt{ecall} instruction to enter the kernel. \\
+\hline
+\texttt{kernel/}\newline\texttt{syscall.c} & System-call dispatcher & It maps the system-call number \texttt{SYS\_sleep} to the kernel handler \texttt{sys\_sleep}. This is the dispatch step after the user-to-kernel trap. \\
+\hline
+\texttt{kernel/}\newline\texttt{sysproc.c:66} & The \texttt{sys\_sleep} handler & It reads the integer argument, checks for a negative value, and waits until the global tick count has advanced by the requested number. \\
+\hline
+\texttt{kernel/}\newline\texttt{proc.c:540} & Kernel scheduler's internal \texttt{sleep(chan, lock)} function & This is not the user system call with the same name. It blocks the current process on a kernel wait channel and lets the scheduler run another process. \\
+\hline
+\texttt{Makefile}, \texttt{UPROGS}, and \texttt{fs.img} & Build and guest filesystem registration & The \texttt{\$U/\_sleep} entry makes the compiled application part of the guest image. Without it, a shell command named \texttt{sleep} would not be present in the xv6 filesystem. \\
+\hline
+\end{longtable}
+
+The source-level distinction is: \texttt{user/sleep.c} is the program source, the compiled \texttt{sleep} binary is the application that runs in user mode, and \texttt{sys\_sleep} is the kernel-side handler. The generated stub connects the two. For \texttt{sleep(10)}, the user wrapper executes \texttt{ecall}; the trap enters the kernel and the dispatcher selects \texttt{sys\_sleep}. That handler reads the tick count and repeatedly calls the kernel scheduler's internal \texttt{sleep(\&ticks, \&tickslock)}. A timer interrupt increments the tick counter and wakes processes waiting on the ticks channel. The handler checks the elapsed ticks, returns to user mode after ten ticks, and the program exits. Both the user system call and the scheduler helper are named \texttt{sleep}, but their source files, privilege levels, and function signatures show that they do different jobs.
+
+In \texttt{user/cat.c}, the important calls have these roles:
+\begin{utmenumerate}
+\item \texttt{open} asks the kernel to open a named file and return a file descriptor;
+\item \texttt{read} asks for bytes from a file descriptor;
+\item \texttt{write} asks the kernel to send bytes to a file descriptor, such as standard output;
+\item \texttt{close} releases a file descriptor when it is no longer needed;
+\item \texttt{exit} ends the process with a status, while \texttt{fprintf} formats an error message in user space and writes it to the selected descriptor.
+\end{utmenumerate}
+
+File descriptors are small integers in a process's descriptor table. By convention, 0 is standard input, 1 is standard output, and 2 is standard error. The same \texttt{read} and \texttt{write} calls can work with a regular file, a pipe, or a device descriptor, which is how programs can use a common interface for different I/O sources. \texttt{fprintf} is a C library function, not a direct system call: it formats text and eventually writes bytes to a descriptor.
+
+The handler \texttt{sys\_read} is implemented in \texttt{kernel/sysfile.c} at line 69 in the pinned checkout. That handler obtains the requested file descriptor and byte count, then delegates the actual read to the kernel's file layer. The wrapper visible to user code and the handler in the kernel are different parts of one request path.
+
+\section{Adding the \texttt{sleep} user program}
+
+The new program accepts exactly one argument. It converts that argument to a tick count, invokes xv6's existing \texttt{sleep} system call, then exits with status 0. The handout supplies this minimal implementation; it checks the argument count but does not validate the numeric string or propagate a failed system-call return. If the argument is missing or extra arguments are supplied, it prints a usage message to standard error and exits with status 1.
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[language=C,caption={user/sleep.c}]
+#include "kernel/types.h"
+#include "user/user.h"
+
+int
+main(int argc, char *argv[])
+{
+  if (argc != 2) {
+    fprintf(2, "usage: sleep <ticks>\n");
+    exit(1);
+  }
+  sleep(atoi(argv[1]));
+  exit(0);
+}
+\end{lstlisting}
+\end{minipage}\par
+
+
+The \texttt{argc != 2} check enforces the interface before indexing \texttt{argv[1]}. \texttt{atoi} converts the decimal argument into the integer expected by \texttt{sleep}. The call crosses from user mode into the kernel through xv6's system-call entry mechanism. When the timer count reaches the requested number of ticks, the call returns and the program exits. The argument is measured in kernel clock ticks, not seconds, so \texttt{sleep 10} requests ten timer ticks. The exercise checks the number of arguments. In this implementation, xv6's \texttt{atoi} stops at a non-digit and does not report conversion errors. Thus a non-numeric argument can become zero; negative input also becomes zero with this converter. The kernel independently clamps a negative integer argument to zero. These are limitations of the supplied exercise program, so the measured success case uses a positive decimal value. A killed process can cause the kernel call to return -1, but this minimal program still exits with status 0.
+
+The build system must include the new program in \texttt{UPROGS}. The entry uses the same \texttt{\$U/\_\allowbreak name} convention as the existing user programs. Without that entry the source file may compile outside the normal image build, but the program will not be copied into the xv6 file system image and will not be available at the shell prompt.
+
+\section{Build and behavior checks}
+
+The assignment checks that the system boots with the program included, that \texttt{sleep 10} waits and returns to the prompt, and that calling \texttt{sleep} without an argument prints the usage line and returns to the prompt. The source calls \texttt{exit(1)} on this error path; xv6's shell does not print a process status value for this command.
+
+\begin{table}[htbp]
+\caption{Required runtime checks and observed outcomes}
+\label{tab:sleep-checks}
+\centering
+\begin{tabularx}{0.95\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Command} & \textbf{Expected behavior from the handout} & \textbf{Observed VM result} \\
+\hline
+Build and launch (handout: \texttt{make qemu}) & Kernel boots and xv6 shell prompt appears & PASS: equivalent explicit build completed in 2.158 s; shell was ready 2.459 s after QEMU launch. \\
+\hline
+\texttt{sleep 10} & Waits for ten ticks, then returns to prompt & PASS: returned after 0.958 s in the measured run. \\
+\hline
+\texttt{sleep} & Prints the usage line and returns to the shell; the source exits with status 1 & PASS: printed \texttt{usage: sleep <ticks>} and returned to the prompt. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\noindent\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Captured sleep program tests}]
+$ sleep 10
+$ sleep
+usage: sleep <ticks>
+$
+\end{lstlisting}
+\end{minipage}\par
+
+
+The timing record measured \texttt{sleep 10} at 0.958 s. In this pinned kernel, the timer interval is nominally 100 ms, so ten ticks are approximately one second. The user call starts within the current tick interval; prompt detection and emulator scheduling also affect the measured wall-clock duration. This single observation does not establish a precise conversion factor or a benchmark distribution. The bare \texttt{sleep} test printed its usage line and returned to the shell; \texttt{exit(1)} is confirmed by the program source, not by a status value printed in the xv6 shell.
+
+The source change is present in the local xv6 tree: \texttt{user/sleep.c} implements the argument check and system call, and \texttt{Makefile} registers \texttt{\$U/\_sleep}. The build included \texttt{sleep} in the xv6 image, and the guest shell successfully executed it with and without an argument.
+
+\utmconclusions
+
+Lab 1 made the OS visible through its interfaces: file metadata, process state, memory accounting, mounts, and device nodes. Lab 2 followed a request in the other direction, from a user program through a system call into kernel code. The new \texttt{sleep} program is short because the kernel already provides the timer-based service; the user program supplies argument handling and asks the kernel to perform the wait. This distinction between policy and mechanism, user code and privileged code, is central to understanding how operating systems organize services.
+
+Each explanation is tied to a concrete observation: a permission listing, process state, memory field, mounted-device row, source location, or xv6 runtime transcript. The lab results show how OS concepts move from command output to source code and then to a working program.
+
+\begin{thebibliography}{9}
+
+\bibitem{lab1} Faculty of Computers, Informatics and Microelectronics, Technical University of Moldova. \textit{Operating Systems: The OS as a Resource Manager, Lab 1, Track A}. Course handout, 2026--2027.
+\bibitem{lab2} Faculty of Computers, Informatics and Microelectronics, Technical University of Moldova. \textit{Operating Systems: Meet the OS You Will Build, Lab 2, Track B}. Course handout, 2026--2027.
+\bibitem{template} Universitatea Tehnică a Moldovei. \textit{ELSE mandatory report template}. Supplied Word model and adapted UTM academic paper template repository, updated 2 October 2026. Accessed 2 October 2026. \url{https://github.com/Lucian-Adrian/utm-academic-paper-template}.
+\bibitem{lab1evidence} Dedicated lab VM 204. \textit{Lab 1 Linux terminal capture}, \texttt{D:/ops/uni/os/lab1/evidence.txt}, 2026-09-28.
+\bibitem{lab2evidence} Dedicated lab VM 204. \textit{Lab 2 xv6 run log and timing records}, \texttt{D:/ops/uni/os/lab2/lab2-run.log}, \texttt{D:/ops/uni/os/lab2/lab2-timing.jsonl}, 2026-09-28.
+\bibitem{xv6} MIT PDOS. \textit{xv6-riscv source code}, commit \texttt{9374395cd3dc}. \url{https://github.com/mit-pdos/xv6-riscv}.
+\end{thebibliography}
+
+\end{document}
