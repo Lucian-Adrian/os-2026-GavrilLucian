@@ -49,13 +49,18 @@ For `ls | grep c`, the shell starts one process for `ls` and another for `grep`,
 The new `sleep` program passes the requested tick count to the existing kernel service. The kernel blocks that process on a wait channel and wakes it on timer interrupts until the requested ticks have elapsed. In this run, `sleep 10` took 0.958 seconds; this is a single observed duration, not an exact conversion from ticks to seconds.
 
 The supplied program validates the number of arguments, but xv6's `atoi` does not report numeric conversion errors. Non-numeric or negative strings can become zero. The kernel separately clamps negative integer arguments to zero, and a killed process can make its system call return -1. The minimal user program does not propagate that return value and still calls `exit(0)`.
+## Optional two pipe exercise
 
-## Evidence
+The handout's optional `pingpong` exercise is implemented in [pingpong.c](pingpong.c). The parent creates two pipes before `fork()`. The child inherits both, closes the unused ends, reads one byte from the parent, prints its PID and sends that byte back. The parent reads the reply, prints its PID and waits for the child. Separate directions and closing unused ends make each channel's ownership clear.
 
-- `D:/ops/uni/os/lab2/lab2-run.log`: package, build, boot, command checks, and summary.
-- `D:/ops/uni/os/lab2/lab2-serial.raw`: raw QEMU serial output, including the boot messages and xv6 command output.
-- `D:/ops/uni/os/lab2/lab2-timing.jsonl`: shell-ready time and duration for each command.
+The 9 October 2026 check copied this source into an isolated xv6 tree on Debian 13 and registered `_pingpong` only there. The build and QEMU process exited successfully, and the actual output was:
 
-![Lab 2 xv6 output rendered from the saved QEMU log](D:/ops/uni/os/lab2/proof-xv6-output.png)
+```text
+$ pingpong
+4: received ping
+3: received pong
+$
+```
 
-The image renders selected lines from the actual QEMU run. `lab2-run.log` and `lab2-serial.raw` are the complete primary records.
+
+To try it in a working copy, copy `pingpong.c` to `user/pingpong.c`, add `$U/_pingpong` to that copy's `UPROGS`, then run `make qemu` and enter `pingpong`. Explain why both pipes must exist before `fork()`, why the parent closes its read end of the first pipe, and why the child sends the reply through a second pipe.

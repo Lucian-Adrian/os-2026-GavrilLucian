@@ -61,9 +61,3 @@ Here, “everything is a file” means the OS exposes many devices through file-
 The OS manages files and directories, which I inspected with `ls -l` and `ls -la /`, and processes, which I inspected with `ps aux` and `/proc/<pid>/status`.  
 It manages memory, which I inspected with `free -h` and `/proc/meminfo`.  
 It manages devices and storage, which I inspected with `lsblk`, `df -h`, and `ls -l /dev`.
-
-## Visual evidence
-
-![Lab 1 Linux output rendered from the saved VM transcript](D:/ops/uni/os/lab1/proof-linux-output.png)
-
-The image renders selected lines from the actual VM capture in [the original transcript](D:/ops/uni/os/lab1/evidence.txt). The text file is the complete primary record.
