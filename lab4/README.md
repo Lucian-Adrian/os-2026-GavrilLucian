@@ -6,6 +6,10 @@ The handout is [L4_SO.pdf](L4_SO.pdf), with the setup guide in [Prepare Your Lap
 
 A focused QEMU run built and booted the temporary tree on Debian GNU/Linux 13 on 9 October 2026. It checked sleep with and without an argument; sleep 20 returned after 1.96 seconds. A 10 October run checked all four args patterns in xv6 and Bash. All twelve required figures for Parts 1 through 4 use genuine terminal captures. The xv6 comparison capture covers rows 1 through 9. A focused interaction found no Up-arrow recall or Ctrl+R search, and Tab at an empty prompt produced no completion list; path-prefix completion was not tested. Source inspection shows no history, completion, or reverse-search handler in the xv6 console. Dev1 is a remote Debian host, and these records do not establish that the course-assigned laptop or VM was used. No teacher receipt is available in this workspace.
 
+## Build report PDF
+
+With Tectonic installed, run `tectonic report.tex` from this folder. This writes `report.pdf` here. The report class and UTM logo are included beside the source, so the build does not depend on a separate `report-template` folder.
+
 ## Run
 
 Use a Linux environment with `make`, a RISC-V compiler and QEMU, following the setup guide. From this folder, create a temporary working copy of the pinned [Lab 2 tree](../lab2/) and copy this lab's sources and Makefile into it:

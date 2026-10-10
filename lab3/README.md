@@ -8,6 +8,10 @@ The data and script checks passed on Debian GNU/Linux 13 on 9 October 2026. The 
 
 The report includes genuine terminal captures for all 24 required figures and the exact temporary cron entry with its four-run output. The captures were recorded on the remote Dev1 Debian GNU/Linux 13 host on 10 October 2026; they do not establish that the assigned course laptop or VM was used. No teacher receipt is available in this workspace.
 
+## Build report PDF
+
+With Tectonic installed, run `tectonic report.tex` from this folder. This writes `report.pdf` here. The report class and UTM logo are included beside the source, so the build does not depend on a separate `report-template` folder.
+
 ## Run
 
 From a Linux or WSL shell:
