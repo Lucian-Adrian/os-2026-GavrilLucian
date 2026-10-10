@@ -1,4 +1,4 @@
-\documentclass{../../../report-template/shared/utmreport}
+\documentclass{../../../report-template/templates/report/utmreport}
 
 \usepackage{booktabs,amssymb,float,graphicx}
 
@@ -6,7 +6,7 @@
 
 \selectlanguage{english}
 
-\utmlogo{../../../report-template/shared/assets/UTM_Logo_English.jpeg}
+\utmlogo{../../../report-template/templates/report/utm-logo.jpeg}
 
 \institution{Technical University of Moldova}
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
@@ -21,11 +21,11 @@
 
 \begin{document}
 \makeutmreporttitlepage
-\tableofcontents
+{\small\tableofcontents}
 \clearpage
 
 \begin{utmabstract}[Abstract]
-This laboratory report investigates the UNIX command-line interface, POSIX shell semantics, and stream processing techniques on modern Linux. The work examines command resolution across shell built-ins and external binaries via the \texttt{PATH} environment variable, analyzes shell parsing phases including parameter expansion, word splitting, globbing, and quote removal, and characterizes file descriptor redirection order and job control. Furthermore, using a standard 500-request web access dataset, complex analytical queries are formulated into single-line pipeline filters utilizing \texttt{grep}, \texttt{cut}, \texttt{sort}, \texttt{uniq}, and \texttt{wc}. Finally, an automated shell script is developed with POSIX parameter validation and formatted reporting, complete with crontab daemon integration. All experimental observations, prediction matrices, and script executions are documented with terminal evidence.
+This laboratory report investigates the UNIX command-line interface, POSIX shell semantics, and stream processing techniques on modern Linux. The work examines command resolution across shell built-ins and external binaries via the \texttt{PATH} environment variable, analyzes shell parsing phases including parameter expansion, word splitting, globbing, and quote removal, and characterizes file descriptor redirection order and job control. Furthermore, using a standard 500-request web access dataset, complex analytical queries are formulated into single-line pipeline filters utilizing \texttt{grep}, \texttt{cut}, \texttt{sort}, \texttt{uniq}, and \texttt{wc}. Finally, an automated shell script is developed with POSIX parameter validation, formatted reporting, and a temporary cron check. The figures are genuine terminal captures from the Dev1 Debian GNU/Linux 13 host, recorded on 10 October 2026. Earlier dataset and script values were checked on 9 October and are reproduced alongside the captures. These records do not establish that the assigned course laptop or VM was used.
 
 \utmkeywords{operating systems, bash, unix pipelines, text filters, stream redirection, shell scripting, process environment}
 \end{utmabstract}
@@ -34,6 +34,10 @@ This laboratory report investigates the UNIX command-line interface, POSIX shell
 The command-line interface is the primary operational surface through which an operating system kernel is directed. While modern graphical user interfaces conceal execution details behind abstractions, the shell exposes the core mechanisms of process creation, environment propagation, and inter-process communication.
 
 The objective of Laboratory 3 is to develop rigorous fluency in Bash command mechanics, predict line-parsing side effects before execution, direct I/O streams using POSIX file descriptor primitives, and construct stream-filtering pipelines to analyze real-world datasets without auxiliary database engines.
+
+The terminal figures are captures of commands run on Dev1 Debian GNU/Linux 13 on 10 October 2026. Dataset and script values were checked against the 9 October run record. Dev1 is a remote host, so these records do not establish that the assigned course laptop or VM was used.
+
+The Bash and POSIX semantics follow the cited manuals \cite{bash,posix}; the small-filter approach follows the cited administration texts \cite{nemeth,shotts}.
 
 The laboratory comprises five distinct parts:
 \begin{utmenumerate}
@@ -51,8 +55,8 @@ Command completion and incremental history search decrease operational latency a
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_1_tab_completion.png}
-\caption{Tab completion behavior for ambiguous and unambiguous path prefixes.}
+\includegraphics[width=0.88\textwidth]{figures/fig1_1_tab_completion.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Tab completion behavior for ambiguous and unambiguous path prefixes.}
 \label{fig:tab_completion}
 \end{figure}
 
@@ -63,8 +67,8 @@ When a user issues a command, the shell determines whether the symbol correspond
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_2_type_which.png}
-\caption{Classification of built-in versus external executable commands.}
+\includegraphics[width=0.88\textwidth]{figures/fig1_2_type_which.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Classification of built-in versus external executable commands.}
 \label{fig:type_which}
 \end{figure}
 
@@ -72,8 +76,8 @@ The \texttt{PATH} variable holds a colon-delimited list of directories traversed
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_3_path_dirs.png}
-\caption{System PATH hierarchy directories printed one per line.}
+\includegraphics[width=0.88\textwidth]{figures/fig1_3_path_dirs.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: System PATH hierarchy directories printed one per line.}
 \label{fig:path_dirs}
 \end{figure}
 
@@ -81,8 +85,8 @@ When a command cannot be found within any directory of \texttt{PATH}, the shell 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_4_exit_code.png}
-\caption{Exit status code 127 produced by an unresolvable command name.}
+\includegraphics[width=0.88\textwidth]{figures/fig1_4_exit_code.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Exit status code 127 produced by an unresolvable command name.}
 \label{fig:exit_code}
 \end{figure}
 
@@ -91,7 +95,7 @@ When a command cannot be found within any directory of \texttt{PATH}, the shell 
 \item \textbf{Which of \texttt{cd}, \texttt{ls}, \texttt{echo} are built-ins, and why MUST \texttt{cd} be one?} \\
 \texttt{cd} and \texttt{echo} are shell built-ins, whereas \texttt{ls} is an external binary located at \texttt{/usr/bin/ls}. \texttt{cd} MUST be a built-in because the current working directory is a state attribute stored in the process control block of the running shell. If \texttt{cd} were implemented as an external binary, the shell would invoke \texttt{fork()} and \texttt{exec()} to run it; the child process would change its own working directory via \texttt{chdir()} and immediately terminate, leaving the parent shell's working directory unchanged.
 \item \textbf{How many directories are in your PATH, and in which one is \texttt{ls}?} \\
-The environment contains 8 standard directories (\texttt{/usr/local/sbin}, \texttt{/usr/local/bin}, \texttt{/usr/sbin}, \texttt{/usr/bin}, \texttt{/sbin}, \texttt{/bin}, \texttt{/usr/games}, \texttt{/usr/local/games}). The \texttt{ls} binary resides in \texttt{/usr/bin/ls}.
+The 9 October Debian 13 check listed 4 PATH entries and resolved \texttt{ls} to \texttt{/usr/bin/ls}. PATH length depends on the host; check the assigned course system if required.
 \item \textbf{What exit code does a command that is not found return?} \\
 Standard POSIX Bash returns exit status code \texttt{127}.
 \item \textbf{Which option of \texttt{ls} sorts by modification time?} \\
@@ -107,8 +111,8 @@ A test sandbox directory \texttt{\~{}/os-lab3/play} was instantiated containing 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_1_play_files.png}
-\caption{Files created in the play directory for parsing verification.}
+\includegraphics[width=0.88\textwidth]{figures/fig2_1_play_files.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Files created in the play directory for parsing verification.}
 \label{fig:play_files}
 \end{figure}
 
@@ -117,8 +121,8 @@ Pathname expansion replaces wildcard patterns with sorted matching filesystem en
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_2_globbing.png}
-\caption{Pathname expansion (globbing) results across character sets and extensions.}
+\includegraphics[width=0.88\textwidth]{figures/fig2_2_globbing.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Pathname expansion (globbing) results across character sets and extensions.}
 \label{fig:globbing}
 \end{figure}
 
@@ -126,8 +130,8 @@ Word splitting is governed by the Internal Field Separator (\texttt{IFS}, space 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_3_spaces_error.png}
-\caption{Word splitting failure on filenames with spaces and proper quoting fixes.}
+\includegraphics[width=0.88\textwidth]{figures/fig2_3_spaces_error.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Word splitting failure on filenames with spaces and proper quoting fixes.}
 \label{fig:spaces_error}
 \end{figure}
 
@@ -135,20 +139,20 @@ Single quotes (\texttt{'...'}) suppress all expansions, treating every character
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_4_quotes.png}
-\caption{Quotation semantics, arithmetic expansion, and subshell substitution.}
+\includegraphics[width=0.88\textwidth]{figures/fig2_4_quotes.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Quotation semantics, arithmetic expansion, and subshell substitution.}
 \label{fig:quotes}
 \end{figure}
 
 \section{Command prediction and verification table}
-Table \ref{tab:predictions} presents the systematic comparison between anticipated behavior and measured system output.
+Table \ref{tab:predictions} keeps pre-run predictions separate from example output values. Figures 2.1–2.4 show the observed command behavior; the later dataset and script sections report measured outputs from the retained run records.
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{lp{4cm}p{4cm}p{4cm}}
+\setlength{\tabcolsep}{4pt}\begin{tabular}{p{2.4cm}p{3.0cm}p{3.4cm}p{4.2cm}}
 \toprule
-\textbf{Command} & \textbf{Prediction} & \textbf{Real Output} & \textbf{Explanation} \\
+\textbf{Command} & \textbf{Prediction} & \textbf{Illustrative example, not measured} & \textbf{Explanation} \\
 \midrule
 \texttt{echo *.c} & Prints all C source files & \texttt{a.c b.c} & Shell expands \texttt{*.c} to directory matches before invoking echo. \\
 \texttt{echo file?.txt} & Matches single wildcard character & \texttt{file1.txt file2.txt} & \texttt{?} matches exactly one character. \\
@@ -156,15 +160,16 @@ Table \ref{tab:predictions} presents the systematic comparison between anticipat
 \texttt{echo *.xyz} & Prints literal pattern & \texttt{*.xyz} & Unmatched glob pattern is preserved as literal text. \\
 \texttt{ls alfa beta.txt} & Attempts to list two files; fails & Error: No such file or directory & Shell splits unquoted space into two separate arguments. \\
 \texttt{ls "alfa beta.txt"} & Lists single file with space & \texttt{'alfa beta.txt'} & Double quotes prevent word splitting across whitespace. \\
-\texttt{echo '\$HOME' "\$HOME" \textbackslash\$HOME} & Literal, expanded, literal & \texttt{\$HOME /home/ubuntu \$HOME} & Single quotes disable expansion; double quotes expand; backslash escapes. \\
+\texttt{echo '\$HOME' "\$HOME" \textbackslash\$HOME} & Literal, expanded, literal & \texttt{\$HOME /home/user \$HOME} & Single quotes disable expansion; double quotes expand; backslash escapes. \\
 \texttt{echo \{1..5\} ; echo \$((7*6))} & Sequence 1 to 5; arithmetic 42 & \texttt{1 2 3 4 5} \newline \texttt{42} & Brace expansion creates sequence; \texttt{\$((...))} computes arithmetic. \\
 \texttt{echo "today is \$(date +\%A)..."} & Formats current date and user & \texttt{today is Monday, I am ubuntu} & Command substitution executes subshell and injects output. \\
 \texttt{touch log\{1..3\}.txt \&\& ls log*} & Creates and lists 3 log files & \texttt{log1.txt log2.txt log3.txt} & Brace expansion creates three targets; globbing lists them. \\
 \bottomrule
 \end{tabular}
-\caption{Command line expansion predictions versus real shell outputs.}
+\caption{Predictions and fixed illustrative examples; outputs are not retained measurements.}
 \label{tab:predictions}
 \end{table}
+The 10 October terminal capture records \texttt{/home/dev1} and \texttt{today is Saturday, I am dev1}; these values depend on the host and date.
 
 \section{Answers to Part 2 Observe questions}
 \begin{utmenumerate}
@@ -185,8 +190,8 @@ In POSIX systems, processes interact with standard streams via integer descripto
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_1_redirections.png}
-\caption{Separation of stdout and stderr into dedicated output files.}
+\includegraphics[width=0.88\textwidth]{figures/fig3_1_redirections.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Separation of stdout and stderr into dedicated output files.}
 \label{fig:redirections}
 \end{figure}
 
@@ -194,8 +199,8 @@ The lexical order of redirection operators is evaluated strictly from left to ri
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_2_redir_order.png}
-\caption{Comparison of redirection evaluation ordering.}
+\includegraphics[width=0.88\textwidth]{figures/fig3_2_redir_order.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Comparison of redirection evaluation ordering.}
 \label{fig:redir_order}
 \end{figure}
 
@@ -211,8 +216,8 @@ Figure \ref{fig:operators} illustrates operator behavior under both failure and 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_3_operators.png}
-\caption{Execution control using conditional operators and subshells.}
+\includegraphics[width=0.88\textwidth]{figures/fig3_3_operators.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Execution control using conditional operators and subshells.}
 \label{fig:operators}
 \end{figure}
 
@@ -220,15 +225,15 @@ Appending \texttt{\&} detaches a process from the shell's foreground execution, 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_4_jobs.png}
-\caption{Launching an asynchronous background process and terminating via SIGTERM.}
+\includegraphics[width=0.88\textwidth]{figures/fig3_4_jobs.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Launching an asynchronous background process and terminating via SIGTERM.}
 \label{fig:jobs}
 \end{figure}
 
 \section{Answers to Part 3 Observe questions}
 \begin{utmenumerate}
 \item \textbf{Which file got the error message, and which got the listing?} \\
-\texttt{err.txt} received the error message (\texttt{ls: cannot access '/nope'...}); \texttt{out.txt} received the 124-line directory listing.
+\texttt{err.txt} received the error message (\texttt{ls: cannot access \'/nope\'...}). The 9 October Debian 13 check recorded 197 stdout lines for \texttt{ls /etc /nope}, which includes a directory heading; see the retained raw check log.
 \item \textbf{What is the difference between \texttt{> all.txt 2>\&1} and \texttt{2>\&1 > all.txt}?} \\
 In \texttt{> all.txt 2>\&1}, standard output is first redirected to \texttt{all.txt}; then descriptor 2 is duplicated to point to the file descriptor of \texttt{all.txt}, routing both streams into the file. In \texttt{2>\&1 > all.txt}, descriptor 2 is duplicated to point to stdout's current destination (the terminal screen); subsequently, descriptor 1 is redirected to \texttt{all.txt}. Thus, stderr remains connected to the terminal while only stdout reaches the file.
 \item \textbf{Why does \texttt{wc -l < access.log} print only a number, while \texttt{wc -l access.log} also prints the file name?} \\
@@ -245,7 +250,7 @@ An artificial access log consisting of 500 entries was generated matching the co
 2026-10-05 10:01 user1 OK /page1
 2026-10-05 10:02 user2 OK /page2
 ...
-2026-10-05 10:20 user3 FAIL /page0
+2026-10-05 10:20 user6 FAIL /page0
 \end{verbatim}
 Each record comprises date, timestamp, username, request result (\texttt{OK} or \texttt{FAIL}), and requested resource endpoint.
 
@@ -260,8 +265,8 @@ Output: \texttt{100}. Exactly 100 requests failed (Figure \ref{fig:q1}).
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_1_failed_requests.png}
-\caption{Figure 4.1 -- Total count of failed requests.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_1_failed_requests.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Total count of failed requests.}
 \label{fig:q1}
 \end{figure}
 
@@ -273,8 +278,8 @@ Output: \texttt{/page0}, \texttt{/page1}, \texttt{/page2}, \texttt{/page3} (Figu
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_2_pages_list.png}
-\caption{Figure 4.2 -- Distinct web endpoints requested.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_2_pages_list.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Distinct web endpoints requested.}
 \label{fig:q2}
 \end{figure}
 
@@ -286,8 +291,8 @@ Output: Each of the 4 pages received exactly 125 requests, summing to 500 total 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_3_page_counts.png}
-\caption{Figure 4.3 -- Request distribution across endpoints.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_3_page_counts.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Request distribution across endpoints.}
 \label{fig:q3}
 \end{figure}
 
@@ -299,21 +304,22 @@ Output: \texttt{user3} and \texttt{user5} both registered 15 failures, tied for 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_4_most_failures.png}
-\caption{Figure 4.4 -- Users exhibiting the greatest failure frequency.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_4_most_failures.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Users exhibiting the greatest failure frequency.}
 \label{fig:q4}
 \end{figure}
 
 \subsection{Q5: Activity breakdown for user3}
 \begin{verbatim}
-echo "user3 total: $(grep -c 'user3 ' access.log), failed: $(grep 'user3 ' access.log | grep -c FAIL)"
+echo "user3 total: $(grep -c 'user3 ' access.log), \
+failed: $(grep 'user3 ' access.log | grep -c FAIL)"
 \end{verbatim}
-Output: \texttt{user3} issued 71 total requests, of which 15 failed (Figure \ref{fig:q5}).
+The 9 October Debian 13 log records 72 total requests by \texttt{user3}, of which 15 failed (Figure \ref{fig:q5}).
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_5_user3_counts.png}
-\caption{Figure 4.5 -- Specific request and failure metrics for user3.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_5_user3_counts.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: user3 request count and failed requests.}
 \label{fig:q5}
 \end{figure}
 
@@ -321,12 +327,12 @@ Output: \texttt{user3} issued 71 total requests, of which 15 failed (Figure \ref
 \begin{verbatim}
 grep FAIL access.log | tail -n 3 | cut -d' ' -f2,3
 \end{verbatim}
-Output: Displays timestamp and user identifier for the final three error entries (Figure \ref{fig:q6}).
+The 9 October Debian 13 log records \texttt{10:10 user0}, \texttt{10:15 user5}, and \texttt{10:20 user3} as the last three failed rows (Figure \ref{fig:q6}).
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_6_last3_failures.png}
-\caption{Figure 4.6 -- Timestamps and users for trailing failure events.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_6_last3_failures.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: last three failed request rows.}
 \label{fig:q6}
 \end{figure}
 
@@ -334,27 +340,31 @@ Output: Displays timestamp and user identifier for the final three error entries
 \begin{verbatim}
 cut -d: -f7 /etc/passwd | sort | uniq -c | sort -rn
 \end{verbatim}
-Output: Categorizes account distribution across system login shells (Figure \ref{fig:q7}).
+The 10 October terminal capture records 29 \texttt{/usr/sbin/nologin}, 3 \texttt{/bin/false}, 2 \texttt{/bin/bash}, and 1 \texttt{/bin/sync}. These counts depend on the host.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_7_login_shells.png}
-\caption{Figure 4.7 -- System user accounts grouped by login shell.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_7_login_shells.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: account counts by login shell.}
 \label{fig:q7}
 \end{figure}
+
+
 
 \subsection{Q8: Line count discrepancy between ls and ls -l}
 \begin{verbatim}
 ls /etc | wc -l ; ls -l /etc | wc -l
 \end{verbatim}
-Output: \texttt{ls /etc | wc -l} outputs 124, whereas \texttt{ls -l /etc | wc -l} outputs 125 (Figure \ref{fig:q8}). \texttt{ls -l} prefixes the file listing with a summary header line (\texttt{total <blocks>}) representing the filesystem block allocation. Because bare \texttt{ls} piped to a stream suppresses headers and emits one file per line, the outputs differ by exactly one line.
+The 10 October terminal capture records 196 lines for \texttt{ls /etc | wc -l} and 197 for \texttt{ls -l /etc | wc -l}; the one-line difference is the \texttt{total} summary line in long format.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_8_ls_wc_diff.png}
-\caption{Figure 4.8 -- Verification of header line discrepancy.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_8_ls_wc_diff.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: line counts with and without long listing format.}
 \label{fig:q8}
 \end{figure}
+
+
 
 \subsection{Full pipeline suite execution and bonus}
 All one-liner queries were bundled in \texttt{oneliners.sh}. The bonus regex query:
@@ -365,8 +375,8 @@ isolates requests occurring at 10-minute intervals that failed, yielding exactly
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_9_oneliners_run.png}
-\caption{Figure 4.9 -- Complete automated execution of oneliners.sh.}
+\includegraphics[width=0.88\textwidth]{figures/fig4_9_oneliners_run.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: complete one-liner run and bonus match count.}
 \label{fig:q9}
 \end{figure}
 
@@ -377,8 +387,8 @@ The analytical one-liners were integrated into an executable automation script \
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig5_1_report_script.png}
-\caption{Figure 5.1 -- Source implementation of report.sh with completed user iteration.}
+\includegraphics[width=0.88\textwidth]{figures/fig5_1_report_script.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Source implementation of report.sh with completed user iteration.}
 \label{fig:script_src}
 \end{figure}
 
@@ -386,8 +396,8 @@ Execution against \texttt{access.log} correctly parses the 500 lines and outputs
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig5_2_running_report.png}
-\caption{Figure 5.2 -- Execution of report.sh against the generated access dataset.}
+\includegraphics[width=0.88\textwidth]{figures/fig5_2_running_report.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Execution of report.sh against the generated access dataset.}
 \label{fig:running_report}
 \end{figure}
 
@@ -395,17 +405,56 @@ When supplied an invalid or missing file, the script writes diagnostic messages 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig5_3_missing_file_error.png}
-\caption{Figure 5.3 -- Diagnostic error reporting and non-zero exit code.}
+\includegraphics[width=0.88\textwidth]{figures/fig5_3_missing_file_error.jpg}
+\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Diagnostic error reporting and non-zero exit code.}
 \label{fig:missing_error}
 \end{figure}
 
 \section{Cron daemon integration}
-The script was scheduled via \texttt{crontab -e} to run autonomously at one-minute intervals:
-\begin{verbatim}
-* * * * * /home/ubuntu/os-lab3/report.sh /home/ubuntu/os-lab3/access.log >> /home/ubuntu/os-lab3/report.log 2>&1
-\end{verbatim}
-Inspection of \texttt{report.log} confirms successive automated append operations without manual intervention.
+The optional cron task ran on Dev1 Debian GNU/Linux 13 using a temporary copy of the Lab 3 files. Cron was active and the user crontab was empty before the test. The following one-minute entry ran \texttt{report.sh} against the copied dataset and appended its output to \texttt{report.log}:
+
+\begin{lstlisting}
+* * * * * /tmp/codex-os-lab3-4-20261009/lab3/report.sh /tmp/codex-os-lab3-4-20261009/lab3/access.log >> /tmp/codex-os-lab3-4-20261009/lab3/report.log 2>&1
+\end{lstlisting}
+
+The log recorded four complete runs during the approximately two-minute check. Its complete contents were:
+
+\begin{lstlisting}
+500 requests, 100 failed
+user0: 14 failures
+user1: 14 failures
+user2: 14 failures
+user3: 15 failures
+user4: 14 failures
+user5: 15 failures
+user6: 14 failures
+500 requests, 100 failed
+user0: 14 failures
+user1: 14 failures
+user2: 14 failures
+user3: 15 failures
+user4: 14 failures
+user5: 15 failures
+user6: 14 failures
+500 requests, 100 failed
+user0: 14 failures
+user1: 14 failures
+user2: 14 failures
+user3: 15 failures
+user4: 14 failures
+user5: 15 failures
+user6: 14 failures
+500 requests, 100 failed
+user0: 14 failures
+user1: 14 failures
+user2: 14 failures
+user3: 15 failures
+user4: 14 failures
+user5: 15 failures
+user6: 14 failures
+\end{lstlisting}
+
+The temporary cron entry was removed, and the user crontab was empty afterward. The log records a run on the remote Dev1 host; it does not establish use of the assigned course laptop or VM.
 
 \section{Answers to Part 5 Observe questions}
 \begin{utmenumerate}
@@ -418,7 +467,7 @@ The shell only traverses directories explicitly listed in \texttt{\$PATH}. The c
 \end{utmenumerate}
 
 \utmconclusions
-Laboratory 3 demonstrated the core operational principles of POSIX shell environments. By evaluating command lookup, tokenization, and expansion phases, the boundaries between user programs, shell logic, and kernel facilities were clarified. UNIX pipelines composed of small, modular text filters proved capable of querying structured datasets without external databases. Finally, encapsulation of these pipelines into robust shell scripts illustrated how automation workflows are engineered with rigorous input validation, error handling, and daemon scheduling.
+The terminal figures show actual command output captured on the Dev1 Debian GNU/Linux 13 host. The handout calls for a Linux laptop or VM; this report does not establish which assigned environment was used.
 
 \begin{thebibliography}{9}
 \bibitem{nemeth} Nemeth, E., Snyder, G., Hein, T. R., Whaley, B., \& Mackin, D. (2017). \textit{UNIX and Linux System Administration Handbook} (5th ed.). Addison-Wesley Professional.

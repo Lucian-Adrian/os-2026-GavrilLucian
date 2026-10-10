@@ -1,25 +1,24 @@
-# Laboratory 3: The Command Line: Shell, Pipes and Text Filters
+# Operating Systems Laboratory 3
 
-This directory contains all coursework files, solutions, and documentation for Operating Systems Laboratory 3 (Track A: Linux).
+The handout is [L3_SO.pdf](L3_SO.pdf). The required repository files are this report, [report.sh](report.sh), and [oneliners.sh](oneliners.sh). The report uses the required filename [Lab3_Lucian-Adrian_Gavril_FAF-241.docx](Lab3_Lucian-Adrian_Gavril_FAF-241.docx); its source and PDF review copy are [report.tex](report.tex) and [report.pdf](report.pdf).
 
-## Overview
+## Status
 
-- **Focus**: Bash command expansion, process environment, shell built-ins vs external utilities, I/O redirection, standard pipelines, text filters (`grep`, `cut`, `sort`, `uniq`, `wc`), and automation scripts.
-- **Handout**: [Official Lab 3 Specification](file:///d:/edu/faf/sem5/os/lab3/L3_SO.pdf) (`L3_SO.pdf`).
+The data and script checks passed on Debian GNU/Linux 13 on 9 October 2026. The measured Q6 output is 10:10 user0, 10:15 user5, and 10:20 user3.
 
-## Deliverables & Files
+The report includes genuine terminal captures for all 24 required figures and the exact temporary cron entry with its four-run output. The captures were recorded on the remote Dev1 Debian GNU/Linux 13 host on 10 October 2026; they do not establish that the assigned course laptop or VM was used. No teacher receipt is available in this workspace.
 
-- [`oneliners.sh`](file:///d:/edu/faf/sem5/os/lab3/oneliners.sh): Single-pipeline solutions answering questions Q1 through Q8, plus the regex bonus.
-- [`report.sh`](file:///d:/edu/faf/sem5/os/lab3/report.sh): Shell script parsing `access.log` with complete user failure breakdowns (`user0` to `user6`) and input validation.
-- [`access.log`](file:///d:/edu/faf/sem5/os/lab3/access.log): Generated 500-line standard artificial web access dataset.
-- [`notes.md`](file:///d:/edu/faf/sem5/os/lab3/notes.md): Complete lab observations, command expansion prediction table, answers to all Observe questions (Parts 1–5), and cron bonus documentation.
-- [`run-lab3.sh`](file:///d:/edu/faf/sem5/os/lab3/run-lab3.sh): Automated test harness verifying the dataset, one-liners, and report generator.
+## Run
 
-## Running the Verification
+From a Linux or WSL shell:
 
-Run the verification harness inside a Linux terminal or WSL environment:
+    cd lab3
+    bash run-lab3.sh
 
-```bash
-cd lab3
-bash run-lab3.sh
-```
+A failed row contains a timestamp, username, status, and page. grep FAIL access.log | cut -d' ' -f3 | sort | uniq -c keeps usernames from failed requests, sorts them, and counts each one.
+
+## Oral questions
+
+- Why must values be sorted before uniq -c? uniq combines adjacent equal lines.
+- Why does ls -l /etc | wc -l usually add one line? Long output includes its total summary.
+- Why do the last failed rows depend on the data file? tail reads the current file order, so rerun the pipeline after changing the dataset.

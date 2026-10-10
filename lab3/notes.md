@@ -3,7 +3,8 @@
 ## Metadata
 - **Course**: Operating Systems (FCIM / FAF, UTM, 2026-2027)
 - **Module**: Lab 3 (Track A: Linux Shell, Pipes and Text Filters)
-- **Environment**: Ubuntu Linux / Bash
+- **Evidence status (2026-10-10)**: The report's 24 required figures are genuine terminal captures from Dev1 Debian GNU/Linux 13. They do not establish that the assigned course laptop or VM was used. The prediction table remains labeled as examples; measured command outputs appear in the captures and run results below.
+- **Measured cross-check**: Debian GNU/Linux 13 (dev1), 2026-10-09. This local run is separate from the assigned course system.
 
 ---
 
@@ -25,7 +26,7 @@
    - `cd` and `echo` are shell built-ins (`ls` is an external binary).
    - `cd` MUST be a built-in because the working directory is an attribute of the process environment. If `cd` were an external executable, the shell would `fork()` a child process to run it; the child would change its own working directory and immediately terminate, leaving the parent shell's working directory unchanged.
 2. **How many directories are in your PATH, and in which one is `ls`?**
-   - Typically 6 to 9 standard system paths (e.g., `/usr/local/sbin`, `/usr/local/bin`, `/usr/sbin`, `/usr/bin`, `/sbin`, `/bin`).
+   - The 9 October Debian 13 check listed 4 PATH entries and resolved `ls` to `/usr/bin/ls`. The assigned course system may differ.
    - `ls` is located in `/usr/bin/ls` (or `/bin/ls` via symlink).
 3. **What exit code does a command that is not found return?**
    - Bash returns exit status `127`.
@@ -48,7 +49,7 @@
 | `ls "alfa beta.txt"` | Lists the file with space | `'alfa beta.txt'` | Double quotes prevent word splitting across whitespace. |
 | `echo '$HOME' "$HOME" \$HOME` | Literal, expanded, escaped | `$HOME /home/user $HOME` | Single quotes suppress expansion; double quotes expand variables; backslash escapes `$`. |
 | `echo {1..5} ; echo $((7 * 6))` | Numbers 1 to 5; arithmetic 42 | `1 2 3 4 5`<br>`42` | Brace expansion generates sequence; `$((...))` evaluates arithmetic. |
-| `echo "today is $(date +%A), I am $(whoami)"` | Current weekday and username | `today is Monday, I am <user>` | Command substitution executes commands in subshells and substitutes output. |
+| `echo "today is $(date +%A), I am $(whoami)"` | Current weekday and username | `today is Friday, I am dev1` on the 2026-10-09 Debian cross-check; the generated panel instead shows fixed Monday/ubuntu example text, not a measurement. | Command substitution executes commands in subshells and substitutes output. |
 | `touch log{1..3}.txt && ls log*` | Creates 3 files and lists them | `log1.txt log2.txt log3.txt` | Brace expansion creates `log1.txt`, `log2.txt`, `log3.txt`; glob lists all three. |
 
 ### Answers to Observe Questions (Part 2)
@@ -131,20 +132,20 @@
   - Both `user3` and `user5` share the maximum with 15 failed requests.
 - **Q5. How many requests did user3 make, and how many of them failed?**
   - Command: `echo "user3 total: $(grep -c 'user3 ' access.log), failed: $(grep 'user3 ' access.log | grep -c FAIL)"`
-  - Output: `user3 total: 71, failed: 15`
+  - Fresh Debian check: `user3 total: 72, failed: 15`. The generated panel says 71, but that is unverified fixed example text, not a measurement.
 - **Q6. Print the last 3 failed requests, showing only time and user.**
   - Command: `grep FAIL access.log | tail -n 3 | cut -d' ' -f2,3`
   - Output:
     ```
-    10:10 user1
-    10:15 user6
+    10:10 user0
+    10:15 user5
     10:20 user3
     ```
 - **Q7. Which login shells appear in `/etc/passwd`, and how many accounts use each?**
   - Command: `cut -d: -f7 /etc/passwd | sort | uniq -c | sort -rn`
-  - Typical system output: `/usr/sbin/nologin`, `/bin/false`, `/bin/bash`, `/bin/sync`.
+  - Fresh Debian cross-check counts: `29 /usr/sbin/nologin`, `3 /bin/false`, `2 /bin/bash`, `1 /bin/sync`. Generated panel values `19`, `8`, `2`, and `1` are unverified examples.
 - **Q8. Explain why `ls /etc | wc -l` and `ls -l /etc | wc -l` differ by exactly one.**
-  - `ls -l` outputs an introductory summary line `total <blocks>` specifying filesystem block allocation before displaying entries. Non-long `ls` piped to a stream prints exactly one entry per line without the summary line.
+  - `ls -l` outputs an introductory summary line `total <blocks>` before entries. Generated panel values `124/125` are unverified; the retained Debian check records `196/197`, differing by the `total` line.
 - **Bonus (+1): Lines where the minute ends in 0 and request failed:**
   - Command: `grep -E '10:[0-5]0 .* FAIL' access.log`
   - Count: `50` matches. Because every minute ending in 0 (00, 10, 20, 30, 40, 50) is divisible by 5, all 50 occurrences in the dataset resulted in FAIL.
@@ -166,9 +167,7 @@ The script checks for file existence, calculates total requests and failures, an
    - `>&2` redirects the error message to standard error (descriptor 2), keeping diagnostic messages distinct from standard output (data).
    - `exit 1` returns a non-zero exit code to signal abnormal termination to the calling environment or pipeline.
 
-### Cron Bonus
-- Crontab entry:
-  ```crontab
-  * * * * * /home/user/os-lab3/report.sh /home/user/os-lab3/access.log >> /home/user/os-lab3/report.log 2>&1
-  ```
-- Result: Appends automated run summary to `report.log` every minute.
+### Cron bonus
+- A temporary one-minute crontab entry ran the copied Lab 3 script on Debian 13. Four reports recorded 500 requests and 100 failures; the user crontab was empty after the check.
+- The report includes the exact one-minute crontab line and all four full report.log summaries required by the optional bonus. The temporary entry was removed and the user crontab was empty afterward.
+- The 24 required report figures are genuine terminal captures from Dev1 Debian GNU/Linux 13. The report includes the temporary cron entry and its four-run output. Dev1 is a remote host, so the captures do not establish use of the assigned course laptop or VM.
