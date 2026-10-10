@@ -3,22 +3,26 @@
 ## Metadata
 - **Course**: Operating Systems (FCIM / FAF, UTM, 2026-2027)
 - **Module**: Lab 4 (Track B: Build Your Own Small OS, xv6)
-- **Source Root**: xv6 RISC-V implementation
+- **Source Root**: xv6 RISC-V implementation. Copied `user.h` declares `sleep(int)`; the nested tree has no Git metadata, so its exact revision is unverified.
+- **Evidence status (2026-10-10)**: The report now includes twelve genuine terminal captures from Dev1 Debian GNU/Linux 13 and a focused QEMU check of the xv6 line-editing keys. Dev1 is remote; the captures do not establish that the assigned course laptop or VM was used. The temporary build used official Debian packages extracted under `/tmp`; host packages and services were not changed.
 
 ---
 
 ## Part 1. Fix Sleep for the Current xv6
 
 ### System Call Versioning Check
-- Header inspection in `user/user.h`:
-  ```bash
-  grep -n "pause\|sleep" user/user.h
-  ```
-  - Pinned repository checkout (revision `9374395cd3dc`): declares `int sleep(int);` on line 25.
-  - Upstream xv6 revisions (post-August 2025): renamed to `int pause(int);` to avoid naming collision with POSIX sleep semantics.
-- Execution behavior in xv6 shell:
-  - `$ sleep 20`: Suspends the user process for 20 clock ticks, then returns cleanly to the shell prompt `$`.
-  - `$ sleep`: Detects `argc != 2`, prints `usage: sleep <ticks>` to stderr (file descriptor 2), and calls `exit(1)`.
+- The copied course tree's `user/user.h` declares `int sleep(int);`.
+- The handout says to inspect the header first. If it declares `pause(int)`, change the call in `sleep.c` to `pause(atoi(argv[1]))`; otherwise use the declared `sleep(int)` call. The handout associates the rename with August 2025.
+- The 9 October serial transcript records `sleep` without an argument printing the usage message and `sleep 20` returning to the prompt; measured wall time was 1.96 seconds. The report's matching figure is a genuine 10 October terminal capture.
+- The copied `Makefile` contains `$U/_sleep` and `$U/_args` entries. `args.c` matches the course tree's source copy; the lab4 `Makefile` matches the course tree's Makefile.
+
+### Focused QEMU run
+- `sudo -n true` returned exit code 1 with `sudo: a password is required`; no system package installation was possible.
+- Debian packages were downloaded from the configured official `deb.debian.org` repository and extracted into `/tmp/codex-os-lab4-riscv-20261009/rootfs`. The isolated prefix used official Debian packages: `gcc-riscv64-unknown-elf` 14.2.0+19, `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `qemu-system-riscv` 10.0.13+ds-0+deb13u1, `opensbi` 1.6-1, `bc` 1.07.1-4, `gcc` 4:14.2.0-1, and `gcc-x86-64-linux-gnu` 4:14.2.0-1. The host already had the GCC 14 backend and QEMU shared-library dependencies; a temporary `gcc` alias used its installed `x86_64-linux-gnu-gcc-14` binary.
+- An 81-file, 283,120-byte temporary copy of `lab12/xv6-riscv` was built with the Lab 4 `sleep.c`, `args.c`, and `Makefile`. `make qemu` exited 0.
+- `sleep 20` returned to the shell prompt after 1.96 seconds measured wall time. Running `sleep` without a value printed `usage: sleep <ticks>`.
+- `args one two three` reported `argc = 4` and the expected four entries. `args *.c "x y"` reported `argc = 4`, with `*.c`, `"x`, and `y"` as literal arguments.
+- The serial transcript is saved at `D:/ops/uni/os-lab3-4/lab4-xv6-smoke.log` (SHA-256 `1508AB7556AD6E828D1A6138A4E96F18A9339721F68598376DA8896822D894AB`). The run came from a temporary copy; the report's screenshots show live terminal sessions from Dev1 Debian GNU/Linux 13.
 
 ---
 
@@ -26,26 +30,28 @@
 
 ### Comparison Matrix
 
+The matrix records observed output for the nine shell-command rows in Bash and xv6. Bash Up-arrow, Tab, and Ctrl+R behavior was checked interactively. A focused QEMU interaction found no xv6 Up-arrow recall or Ctrl+R search; Tab at an empty prompt produced no completion list. Path-prefix completion was not tested. The adjacent command figures are genuine terminal captures.
+
 | Command / Feature | Bash (Linux) Behavior | xv6 Shell Behavior | Underlying Mechanism / Difference |
 | :--- | :--- | :--- | :--- |
 | **Redirection**<br>`echo hello > f ; cat < f` | Writes `hello` to `f`, reads and prints `hello`. | Supported. Creates `f` and reads via `cat < f`. | Both shells open file descriptors with `O_CREATE \| O_WRONLY` (for `>`) and `O_RDONLY` (for `<`) using `dup()`/`close()`. |
 | **Pipe**<br>`ls \| grep READ` | Pipes directory stream to `grep`, outputs matching line. | Supported. `ls` output passes through kernel pipe buffer. | Both implement `pipe()`, `fork()`, and file descriptor redirection (`dup()`). |
-| **Grouping / List**<br>`(echo a; echo b) \| wc` | Subshell grouping executed, piped to `wc`. | Not supported. Parentheses `(...)` are not parsed. | Bash supports compound commands; xv6 `sh.c` has no syntax node for subshell grouping. |
+| **Grouping / List**<br>`(echo a; echo b) \| wc` | Prints `2 2 4`. | Prints `2 2 4`. | Both tested shells accept this parenthesized list in a pipeline; xv6 parses a `PAR` command and `LIST` nodes. |
 | **Sequence**<br>`echo one ; echo two` | Prints `one`, then `two`. | Supported. Prints `one`, then `two`. | xv6 defines `LIST` command type (line 11 `#define LIST 4`) separated by `;`. |
 | **Background**<br>`echo bg &` | Launches asynchronous job in background. | Supported. Spawns child process without calling `wait()`. | xv6 defines `BACK` command type (line 12 `#define BACK 5`) producing `fork()` without `wait()`. |
 | **Globbing**<br>`ls *` | Expands `*` to all directory entries. | Fails. Looks for a literal file named `*`. | Bash expands glob patterns before `execve()`; xv6 shell performs no wildcard expansion. |
 | **Variables**<br>`echo $HOME` | Expands to `/home/<user>`. | Prints `$HOME` literally. | xv6 shell has no environment variable table or `$` parser. |
 | **Quotes**<br>`echo "a b"` | Preserves space, passes single argument `a b`. | Passes `"a` and `b"` as separate tokens (or literal quotes). | xv6 tokenizer splits strictly on spaces and has no quote state machine. |
-| **PATH / Lookup**<br>`mkdir d ; cd d ; ls ..` | Finds `ls` in `/usr/bin` despite working directory `d`. | `exec ls failed`. xv6 cannot find `ls`. | Linux uses `$PATH`; xv6 only looks in the current directory (`d/ls`). Alternative: `/ls ..`. |
-| **Line Editing**<br>Arrows, Tab, Ctrl+R | Readline library history, completion, searching. | Prints raw escape sequences or does nothing. | xv6 terminal driver (`console.c`) provides minimal line buffering with backspace only. |
+| **PATH / Lookup**<br>`mkdir d ; cd d ; ls ..` | Lists parent-directory entries. | `exec cd failed`; `ls ..` then lists entries from the unchanged root directory. | Bash handles `cd` in the command list and searches `$PATH`; xv6 tries `exec cd` inside the list. At a prompt, `cd d` works, but `ls` fails without `$PATH`. |
+| **Line Editing**<br>Arrows, Tab, Ctrl+R | Up-arrow history, Tab completion, and Ctrl+R reverse search were confirmed interactively. | Up/Ctrl+R showed no history or search; Tab at an empty prompt produced no completion list. | Path-prefix completion was not tested. Source inspection found no history, completion, or reverse-search handler in the xv6 console. |
 
 ### Answers to Observe Questions (Part 2)
 1. **List the features both shells have, and the ones only bash has:**
-   - **Both shells have**: Basic command execution (`exec`), input/output redirection (`<`, `>`), single pipes (`|`), sequential command execution (`;`), and background execution (`&`).
-   - **Only bash has**: Globbing (`*`, `?`, `[...]`), environment variables (`$VAR`), quote handling (`"..."`, `'...'`), subshell grouping (`(...)`), conditional chaining (`&&`, `||`), PATH resolution, command history, and tab completion.
+   - **Both shells have**: Basic command execution (`exec`), input/output redirection (`<`, `>`), pipes (`|`), the tested parenthesized list in a pipeline (`(echo a; echo b) | wc`), sequential command execution (`;`), and background execution (`&`). The grouped xv6 command returned `2 2 4`.
+   - **Only bash has**: Globbing (`*`, `?`, `[...]`), environment variables (`$VAR`), quote processing (`"..."`, `'...'`), conditional chaining (`&&`, `||`), PATH resolution, command history, and tab completion.
 2. **In xv6, `ls` stops working after `cd d`. Why? Find a way to run `ls` from inside `d` anyway:**
-   - xv6 has no `$PATH` environment variable mechanism. When a command like `ls` is entered, `user/sh.c` invokes `exec("ls", argv)`. The xv6 kernel interprets relative paths starting from the current directory `d`. Because `ls` resides in the filesystem root `/`, the lookup for `d/ls` fails.
-   - Working alternative from inside `d`: Specify the absolute path `/ls` (e.g., `/ls` or `/ls ..`).
+   - At the prompt, `cd d` succeeds. xv6 has no `$PATH` lookup, so `ls` is resolved relative to `d` and fails.
+   - The captured working alternative is `../ls ../README`; it invokes the `ls` executable from the parent directory and lists `README`.
 3. **Which missing feature would you miss most in daily work, and which would be easiest to add?**
    - **Most missed in daily work**: `$PATH` lookup and tab completion/history. Without `$PATH`, navigating directories breaks all standard tool invocations unless absolute paths are typed.
    - **Easiest to add**: A basic `$PATH` fallback loop in `user/sh.c`. If `exec(cmd, argv)` returns failure, prepend `"/bin/"` or `"/"` to `cmd` and retry `exec` once before failing.
@@ -77,9 +83,9 @@
   }
   ```
 
-### Experimental Output for `args *.c "x y"`
+### Illustrative Linux Example and Measured xv6 Output for `args *.c "x y"`
 
-#### In Bash (Linux):
+#### Illustrative Bash output (not run in the 9 October QEMU check):
 ```
 $ ./args *.c "x y"
 argc = 4
@@ -90,7 +96,7 @@ argv[3] = [x y]
 ```
 *(Assuming `args.c` and `args_linux.c` are present in directory).*
 
-#### In xv6 Shell:
+#### Measured xv6 output, from the retained serial transcript:
 ```
 $ args *.c "x y"
 argc = 4

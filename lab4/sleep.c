@@ -8,7 +8,7 @@ main(int argc, char *argv[])
     fprintf(2, "usage: sleep <ticks>\n");
     exit(1);
   }
-  // Compatible with both traditional xv6 (sleep) and post-Aug 2025 tree (pause)
+  // Match the system call declared in this course tree's user/user.h.
   sleep(atoi(argv[1]));
   exit(0);
 }
