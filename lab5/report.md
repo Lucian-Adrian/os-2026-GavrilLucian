@@ -54,6 +54,8 @@ $ du -sh /var/log 2>/dev/null ; du -sh /usr 2>/dev/null
 7.4G	/usr
 ```
 
+![Figure 1: Tree and File Types](figures/fig1_tree_and_types.jpg)
+
 ### Observe 1: Analysis & Answers
 
 1. **Path Types from the First Letter of `ls -ld`:**
@@ -139,6 +141,8 @@ $ truncate -s 1G big.img ; ls -lh big.img ; du -h big.img
 $ rm big.img
 ```
 
+![Figure 2: Inodes and Links](figures/fig2_inodes_and_links.jpg)
+
 ### Observe 2: Analysis & Answers
 
 1. **Inode and Link Count in `stat`:**
@@ -214,6 +218,8 @@ cat: /etc/shadow: Permission denied
 $ ls -l /etc/shadow
 -rw-r----- 1 root shadow 1205 Oct 12 15:38 /etc/shadow
 ```
+
+![Figure 3: Permissions](figures/fig3_permissions.jpg)
 
 ### Observe 3: Analysis & Answers
 
@@ -301,6 +307,8 @@ l-wx------ 1 ubuntu ubuntu 64 Oct 12 15:39 2 -> pipe:[37191]
 lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 ```
 
+![Figure 4: Disks and Proc](figures/fig4_disks_and_proc.jpg)
+
 ### Observe 4: Analysis & Answers
 
 1. **Disk and Filesystem Architecture:**
@@ -337,6 +345,8 @@ lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 ---
 
 ## Stretch Exercises (All Four Completed)
+
+![Figure 5: Stretch Experiments](figures/fig5_stretch.jpg)
 
 ### (a) Magic Numbers & Binary Header Detection
 

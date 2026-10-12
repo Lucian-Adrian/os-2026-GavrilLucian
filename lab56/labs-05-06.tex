@@ -60,6 +60,13 @@ drwxr-xr-x 107 root root 4096 Oct 12 15:38 /etc
 drwxrwxrwt  10 root root 4096 Oct 12 15:38 /tmp
 \end{verbatim}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig1_tree_and_types.jpg}
+\caption{Terminal session: inspecting system root, device nodes, and file types.}
+\label{fig:comb_l5_tree}
+\end{figure}
+
 \begin{table}[H]
 \centering
 \caption{Observed file types in Ubuntu 24.04 LTS}
@@ -116,6 +123,14 @@ $ rm notes.txt
 $ cat hard.txt
 hello
 \end{verbatim}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig2_inodes_and_links.jpg}
+\caption{Terminal session: inode inspection, hard links, dangling symlinks, and sparse files.}
+\label{fig:comb_l5_inodes}
+\end{figure}
+
 The \texttt{rm} command unlinks the name \texttt{notes.txt} and decrements the inode link count from 2 to 1. Because \texttt{hard.txt} maintains a reference to inode 18829, the data blocks remain allocated and readable.
 
 \section{Symbolic Link Semantics}
@@ -158,6 +173,13 @@ cat: s.txt: Permission denied
 \end{verbatim}
 When the accessing user is the file owner, the kernel evaluates only the owner permission bits. Because they are \texttt{000}, access is denied. Ownership grants metadata authority (the right to invoke \texttt{chmod()}), not an automatic read bypass.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig3_permissions.jpg}
+\caption{Terminal session: permission evaluation, umask verification, and directory traversal.}
+\label{fig:comb_l5_perm}
+\end{figure}
+
 \section{Umask Arithmetic}
 The observed umask is \texttt{0022}. Files default to base mode \texttt{0666} ($0666 \ \& \ \sim 0022 = 0644$), while directories default to \texttt{0777} ($0777 \ \& \ \sim 0022 = 0755$).
 
@@ -181,7 +203,22 @@ Read permission (\texttt{r}) permits directory table enumeration, but accessing 
 \section{Disks, Topology, and /proc/self}
 The system disk \texttt{/dev/sdd} (1 TB, ext4) is mounted at `/` with 1\% utilization (4.2 GB used). Introspection via \texttt{/proc} reveals 12 CPU cores and 19.38 GiB of RAM. Accessing \texttt{/proc/self/status} displays \texttt{Name: head} because \texttt{/proc/self} dynamically resolves to the PID of the accessing program.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig4_disks_and_proc.jpg}
+\caption{Terminal session: disk topology, mount attributes, and procfs inspection.}
+\label{fig:comb_l5_disks}
+\end{figure}
+
 \chapter{Laboratory 5 Stretch Problems}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig5_stretch.jpg}
+\caption{Terminal session: magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
+\label{fig:comb_l5_stretch}
+\end{figure}
+
 \begin{itemize}
 \item \textbf{(a) Magic Numbers}: Inspecting \texttt{notes.txt} via \texttt{xxd} reveals the leading bytes \texttt{0x1f 0x8b}, identifying the gzip compression format per RFC 1952.
 \item \textbf{(b) Setuid Binaries}: Discovered setuid binaries include \texttt{passwd}, \texttt{su}, \texttt{sudo}, \texttt{mount}, \texttt{umount}, \texttt{polkit-agent-helper-1}, and \texttt{ssh-keysign}.
@@ -209,6 +246,13 @@ README         2 2 2425
 cat            2 3 35160
 console        3 24 0
 \end{verbatim}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig1_xv6_ls.jpg}
+\caption{QEMU terminal capture: directory listing and type decoding in xv6.}
+\label{fig:comb_l6_ls}
+\end{figure}
 
 \section{Root Directory and Entry Sizing}
 The root directory resides at inode 1 (\texttt{ROOTINO = 1}). Both `.` and `..` point to inode 1 because the root has no parent. Each \texttt{struct dirent} is 16 bytes (2 bytes \texttt{inum} + 14 bytes \texttt{name}). An empty directory reports size 32 bytes, comprising exactly two 16-byte entries: `.` and `..`.
@@ -264,6 +308,13 @@ $ cat r2 | wc
 48 334 2425
 \end{verbatim}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig2_mystat_links.jpg}
+\caption{QEMU terminal capture: mystat output, link counter increment, and unlinking.}
+\label{fig:comb_l6_mystat}
+\end{figure}
+
 \section{Unlinking versus Deallocation}
 In \texttt{kernel/sysfile.c}, \texttt{sys\_unlink()} decrements link count at line 230:
 \begin{verbatim}
@@ -298,6 +349,13 @@ Because \texttt{DIRSIZ = 14}, creating \texttt{averyveryverylongname} results in
 \item Indirect blocks: $\text{NINDIRECT} = 1024 / 4 = 256$ blocks ($256\text{ KiB}$).
 \item Total blocks: $12 + 256 = 268$ blocks ($274,432\text{ bytes} \approx 268\text{ KiB}$).
 \end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig3_limits_truncation.jpg}
+\caption{QEMU terminal capture: measuring constants, disk layout, and 14-byte truncation.}
+\label{fig:comb_l6_limits}
+\end{figure}
 
 \section{Disk Layout}
 \texttt{mkfs} reports:
@@ -375,6 +433,13 @@ $ find . r2 -n
 $ mystat cat
 cat: file, inode 3, links 2, size 35160 bytes
 \end{verbatim}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig4_find_and_stretch.jpg}
+\caption{QEMU terminal capture: find execution and -n stretch proving inode identity.}
+\label{fig:comb_l6_find}
+\end{figure}
 
 The \texttt{-n} stretch flag proves that \texttt{./r2} and \texttt{cat} share inode 3 and link count 2, confirming they are identical files on disk. The files \texttt{a/b/r2} (inode 26) and \texttt{a/r2} (inode 27) are distinct newly created files.
 

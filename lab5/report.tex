@@ -55,6 +55,13 @@ drwxr-xr-x 107 root root 4096 Oct 12 15:38 /etc
 drwxrwxrwt  10 root root 4096 Oct 12 15:38 /tmp
 \end{verbatim}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig1_tree_and_types.jpg}
+\caption{Terminal session: inspecting system root, device nodes, and file types.}
+\label{fig:l5_tree_types}
+\end{figure}
+
 \begin{table}[H]
 \centering
 \caption{Observed file types in system root}
@@ -114,6 +121,13 @@ $ cat hard.txt
 hello
 \end{verbatim}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig2_inodes_and_links.jpg}
+\caption{Terminal session: inode inspection, hard links, dangling symlinks, and sparse files.}
+\label{fig:l5_inodes_links}
+\end{figure}
+
 The \texttt{rm} utility invokes \texttt{unlink()}, removing the name \texttt{notes.txt} from the directory and decrementing \texttt{i\_nlink} from 2 to 1. Because \texttt{hard.txt} still points to inode 18829 and the link counter is positive, data blocks remain on disk.
 
 \section{Symbolic Link Mechanics}
@@ -170,6 +184,13 @@ cat: s.txt: Permission denied
 \end{verbatim}
 The kernel checks whether \texttt{current\_euid == inode->i\_uid}. Since it matches, only owner bits are evaluated. Because owner bits are \texttt{0}, access is denied immediately. Ownership provides the authority to change mode bits with \texttt{chmod()}, not an automatic read bypass.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig3_permissions.jpg}
+\caption{Terminal session: permission evaluation, umask verification, and directory traversal.}
+\label{fig:l5_permissions}
+\end{figure}
+
 \section{The umask Calculation}
 The observed \texttt{umask} is \texttt{0022}:
 \begin{verbatim}
@@ -219,6 +240,14 @@ Filesystem      Size  Used Avail Use% Mounted on
 $ mount | grep " / "
 /dev/sdd on / type ext4 (rw,relatime,discard,errors=remount-ro,data=ordered)
 \end{verbatim}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig4_disks_and_proc.jpg}
+\caption{Terminal session: disk topology, mount attributes, and procfs inspection.}
+\label{fig:l5_disks_proc}
+\end{figure}
+
 The root filesystem resides on \texttt{/dev/sdd}, a 1 TB virtual SCSI disk formatted with ext4. It has 4.2 GB allocated out of 1007 GB (1\% utilization). Swap is allocated on \texttt{/dev/sdc} (5 GB).
 
 \section{Hardware Introspection via /proc}
@@ -242,6 +271,13 @@ State:  R (running)
 The reported process name is \texttt{head}. In Linux, \texttt{/proc/self} is a dynamic symlink that resolves to the PID of the accessing process. Because \texttt{head} opens \texttt{/proc/self/status}, the kernel reports the status of \texttt{head}.
 
 \chapter{Stretch Experiments}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig5_stretch.jpg}
+\caption{Terminal session: magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
+\label{fig:l5_stretch}
+\end{figure}
 
 \section{(a) Magic Number Header Inspection}
 \begin{verbatim}

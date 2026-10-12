@@ -61,6 +61,13 @@ cat            2 3 35160
 console        3 24 0
 \end{verbatim}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig1_xv6_ls.jpg}
+\caption{QEMU terminal capture: directory listing and type decoding in xv6.}
+\label{fig:l6_ls}
+\end{figure}
+
 \section{The Root Inode and Directory Self-Reference}
 The root directory `/` is anchored at inode 1 (\texttt{ROOTINO = 1}). In every directory table, `.` references the directory itself, while `..` references its parent. Because the root directory has no parent above it, its parent entry points directly to itself. Both `.` and `..` therefore map to inode 1.
 
@@ -133,6 +140,13 @@ $ cat r2 | wc
 48 334 2425
 \end{verbatim}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig2_mystat_links.jpg}
+\caption{QEMU terminal capture: mystat output, link counter increment, and unlinking.}
+\label{fig:l6_mystat_links}
+\end{figure}
+
 When \texttt{ln README r2} executes, the kernel creates a second directory entry referencing inode 2, incrementing \texttt{nlink} to 2. Inode number, size, and content remain identical. When \texttt{README} is removed, \texttt{sys\_unlink()} removes only the directory entry and decrements \texttt{nlink} back to 1. Inode 2 and its data blocks remain intact, allowing \texttt{r2} to read the original contents.
 
 \section{Kernel Unlinking and Block Deallocation Tracing}
@@ -184,6 +198,14 @@ $ mkdir averyveryverylongname
 $ ls
 averyveryveryl 1 26 32
 \end{verbatim}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig3_limits_truncation.jpg}
+\caption{QEMU terminal capture: measuring constants, disk layout, and 14-byte truncation.}
+\label{fig:l6_limits}
+\end{figure}
+
 Because \texttt{DIRSIZ = 14}, names are truncated to 14 characters within the directory entry buffer.
 
 \section{Maximum File Capacity Calculation}
@@ -271,6 +293,13 @@ $ find . r2 -n
 $ mystat cat
 cat: file, inode 3, links 2, size 35160 bytes
 \end{verbatim}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig4_find_and_stretch.jpg}
+\caption{QEMU terminal capture: find execution and -n stretch proving inode identity.}
+\label{fig:l6_find_stretch}
+\end{figure}
 
 The stretch output with \texttt{-n} proves that \texttt{./r2} (inode 3) is the exact same file as \texttt{cat} (inode 3, link count 2). In contrast, \texttt{a/b/r2} (inode 26) and \texttt{a/r2} (inode 27) are newly created distinct files.
 

@@ -56,6 +56,8 @@ $ ls a
 ..             1 1 1024
 ```
 
+![Figure 1: xv6 Directory Listing and Types](figures/fig1_xv6_ls.jpg)
+
 ### Observation Analysis
 
 - **Type Decoding (`kernel/stat.h`):**
@@ -134,6 +136,8 @@ $ cat r2 | wc
 48 334 2425
 ```
 
+![Figure 2: mystat and Hard Links](figures/fig2_mystat_links.jpg)
+
 ### Inode Lifecycle and Deallocation
 
 In `kernel/sysfile.c`, the `sys_unlink()` system call removes the directory record and decrements the inode link count:
@@ -176,6 +180,17 @@ $ grep -n "define BSIZE\|define NDIRECT\|define NINDIRECT\|define DIRSIZ" kernel
 28:#define NINDIRECT (BSIZE / sizeof(uint))
 54:#define DIRSIZ 14
 ```
+
+### Name Truncation at 14 Characters
+
+```text
+$ mkdir averyveryverylongname
+$ ls
+...
+averyveryveryl 1 26 32
+```
+
+![Figure 3: Constants and Truncation](figures/fig3_limits_truncation.jpg)
 
 ### Maximum File Size Derivation
 
@@ -330,6 +345,8 @@ $ find . r2 -n
 $ mystat cat
 cat: file, inode 3, links 2, size 35160 bytes
 ```
+
+![Figure 4: find and -n Inode Verification](figures/fig4_find_and_stretch.jpg)
 
 ### Stretch Finding: Inode Identity
 
