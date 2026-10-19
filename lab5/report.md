@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This laboratory explores the Linux VFS (Virtual Filesystem) abstraction directly through system utilities, file descriptor inspections, and disk analysis. All experiments were conducted as unprivileged user `ubuntu` (UID 1000) inside `~/os-lab5` to ensure DAC (Discretionary Access Control) permission evaluations reflect authentic user space execution. Every command, observed terminal output, and architectural analysis is documented below, including all four optional stretch exercises.
+This saved report, dated 12 October 2026, describes Linux VFS experiments under an unprivileged UID 1000 account and includes command transcripts, tables and analysis for the four optional stretch exercises. Its terminal-style images are reconstructed illustrations, not original captures; they do not independently verify the historical command outputs.
 
 ---
 
@@ -54,7 +54,7 @@ $ du -sh /var/log 2>/dev/null ; du -sh /usr 2>/dev/null
 7.4G	/usr
 ```
 
-![Figure 1: Tree and File Types](figures/fig1_tree_and_types.jpg)
+![Reconstructed terminal illustration, not an original capture; Figure 1: Tree and File Types](assets/fig1_tree_and_types.jpg)
 
 ### Observe 1: Analysis & Answers
 
@@ -141,7 +141,11 @@ $ truncate -s 1G big.img ; ls -lh big.img ; du -h big.img
 $ rm big.img
 ```
 
-![Figure 2: Inodes and Links](figures/fig2_inodes_and_links.jpg)
+![Conceptual diagram of names, inodes, and links](assets/concept-filesystem-links.png)
+
+The conceptual diagram omits the open-file-table layer.
+
+![Reconstructed terminal illustration, not an original capture; Figure 2: Inodes and Links](assets/fig2_inodes_and_links.jpg)
 
 ### Observe 2: Analysis & Answers
 
@@ -219,7 +223,7 @@ $ ls -l /etc/shadow
 -rw-r----- 1 root shadow 1205 Oct 12 15:38 /etc/shadow
 ```
 
-![Figure 3: Permissions](figures/fig3_permissions.jpg)
+![Reconstructed terminal illustration, not an original capture; Figure 3: Permissions](assets/fig3_permissions.jpg)
 
 ### Observe 3: Analysis & Answers
 
@@ -307,7 +311,7 @@ l-wx------ 1 ubuntu ubuntu 64 Oct 12 15:39 2 -> pipe:[37191]
 lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 ```
 
-![Figure 4: Disks and Proc](figures/fig4_disks_and_proc.jpg)
+![Reconstructed terminal illustration, not an original capture; Figure 4: Disks and Proc](assets/fig4_disks_and_proc.jpg)
 
 ### Observe 4: Analysis & Answers
 
@@ -346,7 +350,7 @@ lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 
 ## Stretch Exercises (All Four Completed)
 
-![Figure 5: Stretch Experiments](figures/fig5_stretch.jpg)
+![Reconstructed terminal illustration, not an original capture; Figure 5: Stretch Experiments](assets/fig5_stretch.jpg)
 
 ### (a) Magic Numbers & Binary Header Detection
 
@@ -438,4 +442,21 @@ $ rm disk.img
 
 ## Conclusion
 
-This laboratory verified the structural boundary between human-facing filenames and kernel-managed filesystem metadata. Filenames are mere entries in directory tables pointing to inodes; unlinking a filename leaves data blocks untouched whenever hard links or open file descriptors persist. Sparse files reveal the separation between logical address space and physical disk extent allocation. Finally, directory permission semantics enforce that enumeration requires read access while traversal requires execution privileges.
+The saved command entries and source analysis illustrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The reported values remain historical; the terminal-style figures are reconstructions rather than original captures.
+
+## Appendix: Fresh focused Linux run, 23 October 2026
+
+The raw [execution record](execution-2026-10-23.txt) preserves the actual shell commands, tool versions, and outputs from one bounded Ubuntu 24.04.4 WSL2 run. It used Linux 6.18.33.2 on the WSL2 kernel and an ext4 filesystem under /tmp, with Bash 5.2.21, GNU coreutils 9.4, and Python 3.12.3. The run exercised hard-link identity, symlink metadata, an open descriptor after unlink, and sparse-file allocation. It did not mount an image, change special permission bits, or repeat the other historical report experiments.
+
+~~~text
+name=target.txt type=regular file inode=105838 links=2 size=10 bytes
+name=hardlink.txt type=regular file inode=105838 links=2 size=10 bytes
+link=symlink.txt type=symbolic link inode=105839
+referent=symlink.txt type=regular file inode=105838 links=2
+hardlink after original name removed: hardlink.txt inode=105838 links=1 size=10 bytes
+name_exists=False fd_links=0 bytes_read=28 data='still readable after unlink'
+sparse=sparse.bin logical_bytes=1048576 allocated_512_byte_blocks=0 block_size=512
+1048576 sparse.bin
+~~~
+
+Both hard-link names initially map to inode 105838. After unlinking target.txt, hardlink.txt still names the inode and its link count is one. The open descriptor reads all 28 bytes after its directory name is removed, while the inode reports zero links. The sparse file has a logical size of 1,048,576 bytes and zero allocated 512-byte accounting blocks in this run's ext4 filesystem. This is GNU stat's accounting unit for the allocation count, not the ext4 filesystem block size; du reported zero allocated bytes. These results apply to the exact focused run above; the older terminal panels and other measurements remain historical report material.

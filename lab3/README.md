@@ -1,16 +1,18 @@
 # Operating Systems Laboratory 3
 
-The handout is [L3_SO.pdf](L3_SO.pdf). The required repository files are this report, [report.sh](report.sh), and [oneliners.sh](oneliners.sh). The report uses the required filename [Lab3_Lucian-Adrian_Gavril_FAF-241.docx](Lab3_Lucian-Adrian_Gavril_FAF-241.docx); its source and PDF review copy are [report.tex](report.tex) and [report.pdf](report.pdf).
+The handout is [L3_SO.pdf](L3_SO.pdf). Required Word-deliverable filename: [Lab3_Lucian-Adrian_Gavril_FAF-241.docx](Lab3_Lucian-Adrian_Gavril_FAF-241.docx), retained unchanged. Current PDF review/export: [report.pdf](report.pdf), generated from the [LaTeX source](report.tex) and including the conceptual shell-argument illustration. The required repository scripts are [report.sh](report.sh) and [oneliners.sh](oneliners.sh).
+
+For a first-principles walkthrough of Bash parsing, descriptors, pipes, and the report script, see [teaching-note.md](teaching-note.md).
 
 ## Status
 
 The data and script checks passed on Debian GNU/Linux 13 on 9 October 2026. The measured Q6 output is 10:10 user0, 10:15 user5, and 10:20 user3.
 
-The report includes genuine terminal captures for all 24 required figures and the exact temporary cron entry with its four-run output. The captures were recorded on the remote Dev1 Debian GNU/Linux 13 host on 10 October 2026; they do not establish that the assigned course laptop or VM was used. No teacher receipt is available in this workspace.
+The report includes genuine terminal captures for all 24 required figures and the exact temporary cron entry with its four-run output. The captures were recorded on the remote Dev1 Debian GNU/Linux 13 host on 10 October 2026; they do not establish that the assigned course laptop or VM was used.
 
 ## Build report PDF
 
-With Tectonic installed, run `tectonic report.tex` from this folder. This writes `report.pdf` here. The report class and UTM logo are included beside the source, so the build does not depend on a separate `report-template` folder.
+With Tectonic installed, run `tectonic report.tex` from this folder. This writes `report.pdf` here. The report source uses the flat assets/ folder for its class, UTM logo, and figures.
 
 ## Run
 

@@ -1,4 +1,4 @@
-\documentclass{utmreport}
+\documentclass{assets/utmreport}
 
 \usepackage{booktabs,amssymb,float}
 
@@ -6,7 +6,7 @@
 
 \selectlanguage{english}
 
-\utmlogo{utm-logo.jpeg}
+\utmlogo{assets/utm-logo.jpeg}
 
 \institution{Technical University of Moldova}
 
@@ -39,18 +39,18 @@ These two laboratory exercises examine operating systems from complementary side
 \utmkeywords{operating systems, linux, xv6, system calls, process management}\end{utmabstract}
 
 \utmintroduction
-The two labs use different methods to study the same subject [1, 2]. In Lab 1, Linux is treated as a working system whose state can be inspected from the terminal. In Lab 2, xv6 is small enough to build, boot, and read as source code. Together they connect observed behavior to the code that implements it.
+The two labs use different methods to study the same subject \cite{lab1,lab2}. In Lab 1, Linux is treated as a working system whose state can be inspected from the terminal. In Lab 2, xv6 is small enough to build, boot, and read as source code. Together they connect observed behavior to the code that implements it.
 
 The report separates three kinds of statements:
 \begin{utmenumerate}
 \item command and kernel output copied from the dedicated lab VM;
 \item explanations of what those observations mean;
-\item source-code facts tied to the pinned xv6 revision.
+\item source-code facts tied to the pinned xv6 revision;
 \end{utmenumerate}
 
-The report uses the adapted ELSE report class [3]. The class supplies English labels and the mandatory report layout.
+The report uses the adapted ELSE report class \cite{template}. The class supplies English labels and the mandatory report layout.
 
-The experimental observations were recorded on 28 September 2026. Lab 1 terminal values come from the saved VM transcript [4]. Lab 2 build, boot, shell, and timing results come from the saved run and timing logs [5]. This revision changes presentation and explanation; it does not introduce a new execution or new timing samples.
+The experimental observations were recorded on 28 September 2026. Lab 1 terminal values come from the saved VM transcript \cite{lab1evidence}. Lab 2 build, boot, shell, and timing results come from the saved run and timing logs \cite{lab2evidence}. This revision changes presentation and explanation; it does not introduce a new execution or new timing samples.
 
 The Linux observations and xv6 runtime results below were captured from Proxmox VM 204, created from an Ubuntu 24.04 cloud image for these labs. It was not the preconfigured course VM mentioned in the handouts. Source-code explanations refer to the pinned xv6 checkout used for the build.
 
@@ -164,9 +164,9 @@ ubuntu ubuntu 600 note.txt
 
 
 \begin{utmenumerate}
-\item The file owner is \texttt{ubuntu}; its group is \texttt{ubuntu}. The owner and group columns in \texttt{ls -l} show which identity the permission bits apply to.
-\item For a regular file, mode 600 is expected to display as \texttt{-rw-------}. The first character identifies the file type. The next three characters are owner permissions, the next three are group permissions, and the last three are permissions for other users. The actual listing must be checked because it is the evidence for this VM.
-\item Two directories observed directly under \texttt{/} are \texttt{/etc}, which holds system-wide configuration, and \texttt{/usr}, which holds installed programs, libraries, and shared data. Both appear in the captured root listing.
+\item The file owner is \texttt{ubuntu}; its group is \texttt{ubuntu}. The owner and group columns in \texttt{ls -l} show which identity the permission bits apply to;
+\item For a regular file, mode 600 is expected to display as \texttt{-rw-------}. The first character identifies the file type. The next three characters are owner permissions, the next three are group permissions, and the last three are permissions for other users. The actual listing must be checked because it is the evidence for this VM;
+\item Two directories observed directly under \texttt{/} are \texttt{/etc}, which holds system-wide configuration, and \texttt{/usr}, which holds installed programs, libraries, and shared data. Both appear in the captured root listing;
 \end{utmenumerate}
 
 The numeric mode is an octal encoding of three permission sets. Each digit is a sum of read (4), write (2), and execute (1). In 600, the owner digit 6 means read plus write (4 + 2); the group and other digits are 0. In 644, the owner keeps read and write, while group and others receive read access. The lab restores the file to mode 644 after checking mode 600. The change demonstrates that access control is metadata the OS enforces for file operations. The leading dash in \texttt{-rw-------} says this is a regular file; a directory begins with \texttt{d}. The three permission triplets always belong to owner, group, and other users in that order.
@@ -212,9 +212,9 @@ Threads: 1
 
 
 \begin{utmenumerate}
-\item Process 1 has PID 1 and runs \texttt{systemd}, also invoked as \texttt{/sbin/init}. It is the first user-space process, started by the kernel, and manages system services.
-\item The idle process listing returned 103 lines. Since \texttt{ps aux} prints a header, this corresponds to about 102 listed processes at that instant. Process state changes while the VM runs, so treat the count as a snapshot.
-\item The sleeping process state is \texttt{S (sleeping)}. The kernel scheduler has put the process in an interruptible wait until its timer expires or another event occurs; it is not continuously consuming a CPU core.
+\item Process 1 has PID 1 and runs \texttt{systemd}, also invoked as \texttt{/sbin/init}. It is the first user-space process, started by the kernel, and manages system services;
+\item The idle process listing returned 103 lines. Since \texttt{ps aux} prints a header, this corresponds to about 102 listed processes at that instant. Process state changes while the VM runs, so treat the count as a snapshot;
+\item The sleeping process state is \texttt{S (sleeping)}. The kernel scheduler has put the process in an interruptible wait until its timer expires or another event occurs; it is not continuously consuming a CPU core;
 \end{utmenumerate}
 
 The process directory under \texttt{/proc} is a pseudo-file-system: reading its entries asks the kernel to expose information about live processes. It is not an ordinary directory of stored files on disk. This is one example of Linux making kernel-managed state inspectable through a file-like interface. PID 1 is the first user-space process started by the kernel and commonly manages system services; this VM identifies it as \texttt{systemd}. The shell's background marker returns control to the prompt, and \texttt{\$!} stores the last background PID. \texttt{kill} sends a signal, SIGTERM by default, asking the target process to stop.
@@ -249,9 +249,9 @@ VmRSS: 1968 kB
 
 
 \begin{utmenumerate}
-\item The VM reports 3.8 GiB total RAM, 3.0 GiB free, and 3.4 GiB available. The \texttt{free} column counts currently unused memory, while \texttt{available} estimates how much can be given to new work without swapping, including memory reclaimable from caches.
-\item Swap is disk-backed space the kernel may use to hold memory pages that are not currently resident in RAM. This VM has no swap configured: total and free swap both show 0 B.
-\item The bare \texttt{sleep} process had a resident set of 1968 kB in this capture; an earlier capture measured 1964 kB. It is small because the program waits rather than allocating a large application data set. RSS can differ slightly between observations because process startup and memory accounting are sampled at a particular time.
+\item The VM reports 3.8 GiB total RAM, 3.0 GiB free, and 3.4 GiB available. The \texttt{free} column counts currently unused memory, while \texttt{available} estimates how much can be given to new work without swapping, including memory reclaimable from caches;
+\item Swap is disk-backed space the kernel may use to hold memory pages that are not currently resident in RAM. This VM has no swap configured: total and free swap both show 0 B;
+\item The bare \texttt{sleep} process had a resident set of 1968 kB in this capture; an earlier capture measured 1964 kB. It is small because the program waits rather than allocating a large application data set. RSS can differ slightly between observations because process startup and memory accounting are sampled at a particular time;
 \end{utmenumerate}
 
 \section{Devices and storage}
@@ -299,9 +299,9 @@ udev on /dev type devtmpfs (rw,nosuid,relatime,size=1985472k,nr_inodes=496368,mo
 
 
 \begin{utmenumerate}
-\item The root filesystem at \texttt{/} is mounted from \texttt{/dev/sda1}, according to \texttt{df}. The \texttt{lsblk} output shows that \texttt{sda1} is a partition on the 20 GiB \texttt{sda} virtual disk.
-\item The observed \texttt{/dev/console} is a character device that provides the system console interface. Its leading \texttt{c} in \texttt{ls -l} distinguishes it from a regular file; the major and minor numbers \texttt{5, 1} route access to its kernel driver.
-\item In this context, “everything is a file” means many resources, including device interfaces and kernel-provided information, can be accessed through familiar file operations and paths. It is a useful interface idea, not a claim that every OS resource is literally a regular disk file.
+\item The root filesystem at \texttt{/} is mounted from \texttt{/dev/sda1}, according to \texttt{df}. The \texttt{lsblk} output shows that \texttt{sda1} is a partition on the 20 GiB \texttt{sda} virtual disk;
+\item The observed \texttt{/dev/console} is a character device that provides the system console interface. Its leading \texttt{c} in \texttt{ls -l} distinguishes it from a regular file; the major and minor numbers \texttt{5, 1} route access to its kernel driver;
+\item In this context, “everything is a file” means many resources, including device interfaces and kernel-provided information, can be accessed through familiar file operations and paths. It is a useful interface idea, not a claim that every OS resource is literally a regular disk file;
 \end{utmenumerate}
 
 \section{Lab 1 synthesis}
@@ -349,7 +349,7 @@ make -C /home/ubuntu/os-lab2-run/xv6-riscv -j2 kernel/kernel fs.img
 \end{minipage}\par
 
 
-After that build, the runner launched \texttt{qemu-system-riscv64} with the compiled kernel and \texttt{fs.img}, connected its serial console to a pipe, and sent the required xv6 commands. The exact QEMU arguments are preserved in the runner script and timing record [5]. The interactive \texttt{make qemu} target itself was not invoked in this measured run.
+After that build, the runner launched \texttt{qemu-system-riscv64} with the compiled kernel and \texttt{fs.img}, connected its serial console to a pipe, and sent the required xv6 commands. The exact QEMU arguments are preserved in the runner script and timing record \cite{lab2evidence}. The interactive \texttt{make qemu} target itself was not invoked in this measured run.
 
 The build completed in 2.158 seconds. QEMU started the xv6 guest, and the shell became ready 2.459 seconds after QEMU launch. This distinguishes a successful compile from a successful boot: the \texttt{init: starting sh} message and guest prompt show that the kernel started the first user process.
 
@@ -367,7 +367,7 @@ $
 
 QEMU is exited with Ctrl-A followed by X when working interactively, as stated in the assignment. In the automated run, QEMU was terminated after all requested shell commands passed.
 
-The local source tree is pinned to xv6-riscv commit \texttt{9374395cd3dc} [6]. This revision provides the \texttt{sleep(ticks)} system call required by the handout. A newer upstream revision renamed that call to \texttt{pause(ticks)}, which would not match the exercise without adapting its source.
+The local source tree is pinned to xv6-riscv commit \texttt{9374395cd3dc} \cite{xv6}. This revision provides the \texttt{sleep(ticks)} system call required by the handout. A newer upstream revision renamed that call to \texttt{pause(ticks)}, which would not match the exercise without adapting its source.
 
 \section{Using xv6 as a Unix system}
 
@@ -458,7 +458,7 @@ In \texttt{user/cat.c}, the important calls have these roles:
 \item \texttt{read} asks for bytes from a file descriptor;
 \item \texttt{write} asks the kernel to send bytes to a file descriptor, such as standard output;
 \item \texttt{close} releases a file descriptor when it is no longer needed;
-\item \texttt{exit} ends the process with a status, while \texttt{fprintf} formats an error message in user space and writes it to the selected descriptor.
+\item \texttt{exit} ends the process with a status, while \texttt{fprintf} formats an error message in user space and writes it to the selected descriptor;
 \end{utmenumerate}
 
 File descriptors are small integers in a process's descriptor table. By convention, 0 is standard input, 1 is standard output, and 2 is standard error. The same \texttt{read} and \texttt{write} calls can work with a regular file, a pipe, or a device descriptor, which is how programs can use a common interface for different I/O sources. \texttt{fprintf} is a C library function, not a direct system call: it formats text and eventually writes bytes to a descriptor.

@@ -1,4 +1,4 @@
-\documentclass{utmreport}
+\documentclass{assets/utmreport}
 
 \usepackage{booktabs,amssymb,float,graphicx}
 
@@ -6,7 +6,7 @@
 
 \selectlanguage{english}
 
-\utmlogo{utm-logo.jpeg}
+\utmlogo{assets/utm-logo.jpeg}
 
 \institution{Technical University of Moldova}
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
@@ -41,11 +41,11 @@ The Bash and POSIX semantics follow the cited manuals \cite{bash,posix}; the sma
 
 The laboratory comprises five distinct parts:
 \begin{utmenumerate}
-\item \textbf{Navigation and Command Inspection}: Distinguishing shell built-ins from external binaries, evaluating environment lookup paths, and analyzing exit statuses.
-\item \textbf{Line Parsing and Expansion Rules}: Evaluating brace expansion, tilde expansion, parameter substitution, command substitution, arithmetic expansion, word splitting, pathname expansion (globbing), and quote suppression.
-\item \textbf{Redirection, Control Operators, and Job Control}: Characterizing standard file descriptors (stdin, stdout, stderr), order-dependent redirection syntax, conditional chaining operators (\texttt{;}, \texttt{\&\&}, \texttt{||}), and asynchronous process management.
-\item \textbf{Analytical Text Filters}: Formulating single-command pipelines to answer discrete statistical questions on an artificial web access log.
-\item \textbf{Structured Shell Automation}: Implementing a robust POSIX shell script with argument validation, stream aggregation, error handling, and cron daemon scheduling.
+\item \textbf{Navigation and Command Inspection}: Distinguishing shell built-ins from external binaries, evaluating environment lookup paths, and analyzing exit statuses;
+\item \textbf{Line Parsing and Expansion Rules}: Evaluating brace expansion, tilde expansion, parameter substitution, command substitution, arithmetic expansion, word splitting, pathname expansion (globbing), and quote suppression;
+\item \textbf{Redirection, Control Operators, and Job Control}: Characterizing standard file descriptors (stdin, stdout, stderr), order-dependent redirection syntax, conditional chaining operators (\texttt{;}, \texttt{\&\&}, \texttt{||}), and asynchronous process management;
+\item \textbf{Analytical Text Filters}: Formulating single-command pipelines to answer discrete statistical questions on an artificial web access log;
+\item \textbf{Structured Shell Automation}: Implementing a robust POSIX shell script with argument validation, stream aggregation, error handling, and cron daemon scheduling;
 \end{utmenumerate}
 
 \chapter{Navigation and Command Inspection}
@@ -55,7 +55,7 @@ Command completion and incremental history search decrease operational latency a
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_1_tab_completion.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig1_1_tab_completion.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Tab completion behavior for ambiguous and unambiguous path prefixes.}
 \label{fig:tab_completion}
 \end{figure}
@@ -67,7 +67,7 @@ When a user issues a command, the shell determines whether the symbol correspond
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_2_type_which.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig1_2_type_which.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Classification of built-in versus external executable commands.}
 \label{fig:type_which}
 \end{figure}
@@ -76,7 +76,7 @@ The \texttt{PATH} variable holds a colon-delimited list of directories traversed
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_3_path_dirs.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig1_3_path_dirs.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: System PATH hierarchy directories printed one per line.}
 \label{fig:path_dirs}
 \end{figure}
@@ -85,21 +85,17 @@ When a command cannot be found within any directory of \texttt{PATH}, the shell 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_4_exit_code.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig1_4_exit_code.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Exit status code 127 produced by an unresolvable command name.}
 \label{fig:exit_code}
 \end{figure}
 
 \section{Answers to Part 1 Observe questions}
 \begin{utmenumerate}
-\item \textbf{Which of \texttt{cd}, \texttt{ls}, \texttt{echo} are built-ins, and why MUST \texttt{cd} be one?} \\
-\texttt{cd} and \texttt{echo} are shell built-ins, whereas \texttt{ls} is an external binary located at \texttt{/usr/bin/ls}. \texttt{cd} MUST be a built-in because the current working directory is a state attribute stored in the process control block of the running shell. If \texttt{cd} were implemented as an external binary, the shell would invoke \texttt{fork()} and \texttt{exec()} to run it; the child process would change its own working directory via \texttt{chdir()} and immediately terminate, leaving the parent shell's working directory unchanged.
-\item \textbf{How many directories are in your PATH, and in which one is \texttt{ls}?} \\
-The 9 October Debian 13 check listed 4 PATH entries and resolved \texttt{ls} to \texttt{/usr/bin/ls}. PATH length depends on the host; check the assigned course system if required.
-\item \textbf{What exit code does a command that is not found return?} \\
-Standard POSIX Bash returns exit status code \texttt{127}.
-\item \textbf{Which option of \texttt{ls} sorts by modification time?} \\
-The \texttt{-t} flag sorts entries by modification time (newest first). Appending \texttt{-r} reverses the sort order.
+\item \textbf{Which of \texttt{cd}, \texttt{ls}, \texttt{echo} are built-ins, and why MUST \texttt{cd} be one?} \\ \texttt{cd} and \texttt{echo} are shell built-ins, whereas \texttt{ls} is an external binary located at \texttt{/usr/bin/ls}. \texttt{cd} MUST be a built-in because the current working directory is a state attribute stored in the process control block of the running shell. If \texttt{cd} were implemented as an external binary, the shell would invoke \texttt{fork()} and \texttt{exec()} to run it; the child process would change its own working directory via \texttt{chdir()} and immediately terminate, leaving the parent shell's working directory unchanged;
+\item \textbf{How many directories are in your PATH, and in which one is \texttt{ls}?} \\ The 9 October Debian 13 check listed 4 PATH entries and resolved \texttt{ls} to \texttt{/usr/bin/ls}. PATH length depends on the host; check the assigned course system if required;
+\item \textbf{What exit code does a command that is not found return?} \\ Standard POSIX Bash returns exit status code \texttt{127};
+\item \textbf{Which option of \texttt{ls} sorts by modification time?} \\ The \texttt{-t} flag sorts entries by modification time (newest first). Appending \texttt{-r} reverses the sort order;
 \end{utmenumerate}
 
 \chapter{Shell Line Parsing and Expansions}
@@ -107,11 +103,20 @@ The \texttt{-t} flag sorts entries by modification time (newest first). Appendin
 \section{Parsing phases and test directory creation}
 Prior to program execution, the shell processes the input string through distinct parsing phases: tokenization, brace expansion, tilde expansion, parameter expansion, command substitution, arithmetic expansion, word splitting, pathname expansion (globbing), and quote removal.
 
+Figure \ref{fig:argv_concept} gives a high-level view of the boundary between command text, shell-prepared arguments, and program execution. It is conceptual: it does not specify Bash's complete expansion-order algorithm.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{assets/concept-shell-arguments.png}
+\caption{Conceptual illustration of shell argument preparation before program execution; not an execution capture or a complete Bash expansion-order specification.}
+\label{fig:argv_concept}
+\end{figure}
+
 A test sandbox directory \texttt{\~{}/os-lab3/play} was instantiated containing standard and edge-case filenames, notably filenames containing embedded whitespace (Figure \ref{fig:play_files}).
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_1_play_files.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig2_1_play_files.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Files created in the play directory for parsing verification.}
 \label{fig:play_files}
 \end{figure}
@@ -121,7 +126,7 @@ Pathname expansion replaces wildcard patterns with sorted matching filesystem en
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_2_globbing.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig2_2_globbing.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Pathname expansion (globbing) results across character sets and extensions.}
 \label{fig:globbing}
 \end{figure}
@@ -130,7 +135,7 @@ Word splitting is governed by the Internal Field Separator (\texttt{IFS}, space 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_3_spaces_error.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig2_3_spaces_error.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Word splitting failure on filenames with spaces and proper quoting fixes.}
 \label{fig:spaces_error}
 \end{figure}
@@ -139,7 +144,7 @@ Single quotes (\texttt{'...'}) suppress all expansions, treating every character
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_4_quotes.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig2_4_quotes.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Quotation semantics, arithmetic expansion, and subshell substitution.}
 \label{fig:quotes}
 \end{figure}
@@ -173,14 +178,10 @@ The 10 October terminal capture records \texttt{/home/dev1} and \texttt{today is
 
 \section{Answers to Part 2 Observe questions}
 \begin{utmenumerate}
-\item \textbf{\texttt{echo} knows nothing about files, yet \texttt{echo *.c} printed file names. Who produced them?} \\
-The shell produced them during the pathname expansion phase before invoking \texttt{echo}. The shell queries the filesystem directory table, sorts matching entries, and replaces the token \texttt{*.c} with arguments \texttt{argv[1] = "a.c"} and \texttt{argv[2] = "b.c"}. The \texttt{echo} binary merely iterates over its argument array and writes them to stdout.
-\item \textbf{Why did \texttt{ls alfa beta.txt} fail? Give two different ways to fix it.} \\
-It failed because the unquoted space acts as an argument delimiter. The shell invoked \texttt{ls} with two arguments: \texttt{"alfa"} and \texttt{"beta.txt"}. Because neither file exists independently, \texttt{ls} produced two error messages. Fix 1: Enclose the target string in quotes: \texttt{ls "alfa beta.txt"}. Fix 2: Escape the space character using a backslash: \texttt{ls alfa\textbackslash\ beta.txt}.
-\item \textbf{What is the difference between single and double quotes?} \\
-Single quotes treat every character enclosed literally, disabling parameter expansion (\texttt{\$VAR}), command substitution (\texttt{\$(...)}), and arithmetic evaluation. Double quotes suppress globbing and word splitting while preserving variable expansion, command substitution, and backslash escaping.
-\item \textbf{Why does \texttt{ls} show the file with a space in quotes (\texttt{'alfa beta.txt'})?} \\
-Modern GNU Coreutils \texttt{ls} defaults to \texttt{--quoting-style=shell-escape}, quoting filenames containing whitespace or shell metacharacters so the printed representation can be safely copied and re-entered into a shell prompt without splitting errors.
+\item \textbf{\texttt{echo} knows nothing about files, yet \texttt{echo *.c} printed file names. Who produced them?} \\ The shell produced them during the pathname expansion phase before invoking \texttt{echo}. The shell queries the filesystem directory table, sorts matching entries, and replaces the token \texttt{*.c} with arguments \texttt{argv[1] = "a.c"} and \texttt{argv[2] = "b.c"}. The \texttt{echo} binary merely iterates over its argument array and writes them to stdout;
+\item \textbf{Why did \texttt{ls alfa beta.txt} fail? Give two different ways to fix it.} \\ It failed because the unquoted space acts as an argument delimiter. The shell invoked \texttt{ls} with two arguments: \texttt{"alfa"} and \texttt{"beta.txt"}. Because neither file exists independently, \texttt{ls} produced two error messages. Fix 1: Enclose the target string in quotes: \texttt{ls "alfa beta.txt"}. Fix 2: Escape the space character using a backslash: \texttt{ls alfa\textbackslash\ beta.txt};
+\item \textbf{What is the difference between single and double quotes?} \\ Single quotes treat every character enclosed literally, disabling parameter expansion (\texttt{\$VAR}), command substitution (\texttt{\$(...)}), and arithmetic evaluation. Double quotes suppress globbing and word splitting while preserving variable expansion, command substitution, and backslash escaping;
+\item \textbf{Why does \texttt{ls} show the file with a space in quotes (\texttt{'alfa beta.txt'})?} \\ Modern GNU Coreutils \texttt{ls} defaults to \texttt{--quoting-style=shell-escape}, quoting filenames containing whitespace or shell metacharacters so the printed representation can be safely copied and re-entered into a shell prompt without splitting errors;
 \end{utmenumerate}
 
 \chapter{I/O Redirection, Chaining, and Jobs}
@@ -190,7 +191,7 @@ In POSIX systems, processes interact with standard streams via integer descripto
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_1_redirections.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig3_1_redirections.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Separation of stdout and stderr into dedicated output files.}
 \label{fig:redirections}
 \end{figure}
@@ -199,7 +200,7 @@ The lexical order of redirection operators is evaluated strictly from left to ri
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_2_redir_order.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig3_2_redir_order.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Comparison of redirection evaluation ordering.}
 \label{fig:redir_order}
 \end{figure}
@@ -207,16 +208,16 @@ The lexical order of redirection operators is evaluated strictly from left to ri
 \section{Control operators and background job management}
 Sequential execution operators regulate command execution based on exit status:
 \begin{itemize}
-\item \texttt{;} unconditionally executes the subsequent command.
-\item \texttt{\&\&} executes the subsequent command only if the preceding command succeeded (exit status 0).
-\item \texttt{||} executes the subsequent command only if the preceding command failed (non-zero exit status).
+\item \texttt{;} unconditionally executes the subsequent command;
+\item \texttt{\&\&} executes the subsequent command only if the preceding command succeeded (exit status 0);
+\item \texttt{||} executes the subsequent command only if the preceding command failed (non-zero exit status);
 \end{itemize}
 
 Figure \ref{fig:operators} illustrates operator behavior under both failure and success cases.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_3_operators.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig3_3_operators.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Execution control using conditional operators and subshells.}
 \label{fig:operators}
 \end{figure}
@@ -225,21 +226,17 @@ Appending \texttt{\&} detaches a process from the shell's foreground execution, 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_4_jobs.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig3_4_jobs.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Launching an asynchronous background process and terminating via SIGTERM.}
 \label{fig:jobs}
 \end{figure}
 
 \section{Answers to Part 3 Observe questions}
 \begin{utmenumerate}
-\item \textbf{Which file got the error message, and which got the listing?} \\
-\texttt{err.txt} received the error message (\texttt{ls: cannot access \'/nope\'...}). The 9 October Debian 13 check recorded 197 stdout lines for \texttt{ls /etc /nope}, which includes a directory heading; see the retained raw check log.
-\item \textbf{What is the difference between \texttt{> all.txt 2>\&1} and \texttt{2>\&1 > all.txt}?} \\
-In \texttt{> all.txt 2>\&1}, standard output is first redirected to \texttt{all.txt}; then descriptor 2 is duplicated to point to the file descriptor of \texttt{all.txt}, routing both streams into the file. In \texttt{2>\&1 > all.txt}, descriptor 2 is duplicated to point to stdout's current destination (the terminal screen); subsequently, descriptor 1 is redirected to \texttt{all.txt}. Thus, stderr remains connected to the terminal while only stdout reaches the file.
-\item \textbf{Why does \texttt{wc -l < access.log} print only a number, while \texttt{wc -l access.log} also prints the file name?} \\
-When supplied a file path as an argument, \texttt{wc} opens the file by name and prints both the counted total and the filename. When input is redirected with \texttt{<}, the shell opens the file and attaches it to descriptor 0. The \texttt{wc} process reads purely from stdin, possesses no knowledge of the underlying filename, and outputs only the numeric tally.
-\item \textbf{Explain each operator in one sentence: \texttt{;}, \texttt{\&\&}, \texttt{||}.} \\
-\texttt{;} executes the next command unconditionally. \texttt{\&\&} executes the next command only if the preceding command returns exit status 0 (success). \texttt{||} executes the next command only if the preceding command returns a non-zero exit status (failure).
+\item \textbf{Which file got the error message, and which got the listing?} \\ \texttt{err.txt} received the error message (\texttt{ls: cannot access \'/nope\'...}). The 9 October Debian 13 check recorded 197 stdout lines for \texttt{ls /etc /nope}, which includes a directory heading; see the retained raw check log;
+\item \textbf{What is the difference between \texttt{> all.txt 2>\&1} and \texttt{2>\&1 > all.txt}?} \\ In \texttt{> all.txt 2>\&1}, standard output is first redirected to \texttt{all.txt}; then descriptor 2 is duplicated to point to the file descriptor of \texttt{all.txt}, routing both streams into the file. In \texttt{2>\&1 > all.txt}, descriptor 2 is duplicated to point to stdout's current destination (the terminal screen); subsequently, descriptor 1 is redirected to \texttt{all.txt}. Thus, stderr remains connected to the terminal while only stdout reaches the file;
+\item \textbf{Why does \texttt{wc -l < access.log} print only a number, while \texttt{wc -l access.log} also prints the file name?} \\ When supplied a file path as an argument, \texttt{wc} opens the file by name and prints both the counted total and the filename. When input is redirected with \texttt{<}, the shell opens the file and attaches it to descriptor 0. The \texttt{wc} process reads purely from stdin, possesses no knowledge of the underlying filename, and outputs only the numeric tally;
+\item \textbf{Explain each operator in one sentence: \texttt{;}, \texttt{\&\&}, \texttt{||}.} \\ \texttt{;} executes the next command unconditionally. \texttt{\&\&} executes the next command only if the preceding command returns exit status 0 (success). \texttt{||} executes the next command only if the preceding command returns a non-zero exit status (failure);
 \end{utmenumerate}
 
 \chapter{Analytical Text Filters}
@@ -265,7 +262,7 @@ Output: \texttt{100}. Exactly 100 requests failed (Figure \ref{fig:q1}).
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_1_failed_requests.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_1_failed_requests.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Total count of failed requests.}
 \label{fig:q1}
 \end{figure}
@@ -278,7 +275,7 @@ Output: \texttt{/page0}, \texttt{/page1}, \texttt{/page2}, \texttt{/page3} (Figu
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_2_pages_list.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_2_pages_list.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Distinct web endpoints requested.}
 \label{fig:q2}
 \end{figure}
@@ -291,7 +288,7 @@ Output: Each of the 4 pages received exactly 125 requests, summing to 500 total 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_3_page_counts.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_3_page_counts.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Request distribution across endpoints.}
 \label{fig:q3}
 \end{figure}
@@ -304,7 +301,7 @@ Output: \texttt{user3} and \texttt{user5} both registered 15 failures, tied for 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_4_most_failures.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_4_most_failures.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Users exhibiting the greatest failure frequency.}
 \label{fig:q4}
 \end{figure}
@@ -318,7 +315,7 @@ The 9 October Debian 13 log records 72 total requests by \texttt{user3}, of whic
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_5_user3_counts.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_5_user3_counts.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: user3 request count and failed requests.}
 \label{fig:q5}
 \end{figure}
@@ -331,7 +328,7 @@ The 9 October Debian 13 log records \texttt{10:10 user0}, \texttt{10:15 user5}, 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_6_last3_failures.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_6_last3_failures.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: last three failed request rows.}
 \label{fig:q6}
 \end{figure}
@@ -344,7 +341,7 @@ The 10 October terminal capture records 29 \texttt{/usr/sbin/nologin}, 3 \texttt
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_7_login_shells.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_7_login_shells.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: account counts by login shell.}
 \label{fig:q7}
 \end{figure}
@@ -359,7 +356,7 @@ The 10 October terminal capture records 196 lines for \texttt{ls /etc | wc -l} a
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_8_ls_wc_diff.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_8_ls_wc_diff.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: line counts with and without long listing format.}
 \label{fig:q8}
 \end{figure}
@@ -375,7 +372,7 @@ isolates requests occurring at 10-minute intervals that failed, yielding exactly
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_9_oneliners_run.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_9_oneliners_run.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: complete one-liner run and bonus match count.}
 \label{fig:q9}
 \end{figure}
@@ -387,7 +384,7 @@ The analytical one-liners were integrated into an executable automation script \
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig5_1_report_script.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig5_1_report_script.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Source implementation of report.sh with completed user iteration.}
 \label{fig:script_src}
 \end{figure}
@@ -396,7 +393,7 @@ Execution against \texttt{access.log} correctly parses the 500 lines and outputs
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig5_2_running_report.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig5_2_running_report.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Execution of report.sh against the generated access dataset.}
 \label{fig:running_report}
 \end{figure}
@@ -405,7 +402,7 @@ When supplied an invalid or missing file, the script writes diagnostic messages 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig5_3_missing_file_error.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig5_3_missing_file_error.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Diagnostic error reporting and non-zero exit code.}
 \label{fig:missing_error}
 \end{figure}
@@ -458,12 +455,9 @@ The temporary cron entry was removed, and the user crontab was empty afterward. 
 
 \section{Answers to Part 5 Observe questions}
 \begin{utmenumerate}
-\item \textbf{What does the first line \texttt{\#!/bin/bash} do, and what happens if you run \texttt{./report.sh} before \texttt{chmod +x}?} \\
-The shebang line \texttt{\#!/bin/bash} informs the kernel's \texttt{execve()} system call which interpreter binary to load when executing the script. Attempting to run \texttt{./report.sh} without execute permissions returns \texttt{bash: ./report.sh: Permission denied}.
-\item \textbf{Why must you type \texttt{./report.sh} and not just \texttt{report.sh}?} \\
-The shell only traverses directories explicitly listed in \texttt{\$PATH}. The current working directory (\texttt{.}) is omitted from \texttt{PATH} by default to prevent accidental execution of untrusted local binaries. Prefacing with \texttt{./} provides an explicit relative path.
-\item \textbf{Why does the script write the error with \texttt{>\&2} and end with \texttt{exit 1}?} \\
-\texttt{>\&2} redirects error strings to standard error (descriptor 2), preserving standard output for clean pipeline data. \texttt{exit 1} signals abnormal termination to calling environments and conditional operators.
+\item \textbf{What does the first line \texttt{\#!/bin/bash} do, and what happens if you run \texttt{./report.sh} before \texttt{chmod +x}?} \\ The shebang line \texttt{\#!/bin/bash} informs the kernel's \texttt{execve()} system call which interpreter binary to load when executing the script. Attempting to run \texttt{./report.sh} without execute permissions returns \texttt{bash: ./report.sh: Permission denied};
+\item \textbf{Why must you type \texttt{./report.sh} and not just \texttt{report.sh}?} \\ The shell only traverses directories explicitly listed in \texttt{\$PATH}. The current working directory (\texttt{.}) is omitted from \texttt{PATH} by default to prevent accidental execution of untrusted local binaries. Prefacing with \texttt{./} provides an explicit relative path;
+\item \textbf{Why does the script write the error with \texttt{>\&2} and end with \texttt{exit 1}?} \\ \texttt{>\&2} redirects error strings to standard error (descriptor 2), preserving standard output for clean pipeline data. \texttt{exit 1} signals abnormal termination to calling environments and conditional operators;
 \end{utmenumerate}
 
 \utmconclusions

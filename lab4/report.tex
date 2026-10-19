@@ -1,4 +1,4 @@
-\documentclass{utmreport}
+\documentclass{assets/utmreport}
 
 \usepackage{booktabs,amssymb,float,graphicx}
 
@@ -6,7 +6,7 @@
 
 \selectlanguage{english}
 
-\utmlogo{utm-logo.jpeg}
+\utmlogo{assets/utm-logo.jpeg}
 
 \institution{Technical University of Moldova}
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
@@ -37,10 +37,10 @@ Laboratory 4 examines the xv6 shell (\texttt{user/sh.c}) alongside GNU Bash to i
 
 The investigation is divided into four parts:
 \begin{utmenumerate}
-\item \textbf{System Call Verification and Sleep Implementation}: Validating the kernel system call declaration in \texttt{user/user.h}, confirming proper argument parsing and tick delays in \texttt{user/sleep.c}, and registering the utility in the xv6 build system.
-\item \textbf{Comparative Behavioral Analysis}: Testing identical syntax patterns in Bash and xv6 across I/O redirection, pipelines, list grouping, sequential execution, background jobs, globbing, environment variables, quotation semantics, path searching, and command-line editing.
-\item \textbf{Argument Vector Inspection}: Authoring dual implementations of an argument printer (\texttt{args.c} for xv6 and \texttt{args\_linux.c} for Linux) to determine who expands wildcards and strips quotation marks.
-\item \textbf{Source Code Architecture of \texttt{user/sh.c}}: Examining the tagged command structures, recursive execution in \texttt{runcmd()}, and the explicit parent-process handling of the \texttt{cd} command.
+\item \textbf{System Call Verification and Sleep Implementation}: Validating the kernel system call declaration in \texttt{user/user.h}, confirming proper argument parsing and tick delays in \texttt{user/sleep.c}, and registering the utility in the xv6 build system;
+\item \textbf{Comparative Behavioral Analysis}: Testing identical syntax patterns in Bash and xv6 across I/O redirection, pipelines, list grouping, sequential execution, background jobs, globbing, environment variables, quotation semantics, path searching, and command-line editing;
+\item \textbf{Argument Vector Inspection}: Authoring dual implementations of an argument printer (\texttt{args.c} for xv6 and \texttt{args\_linux.c} for Linux) to determine who expands wildcards and strips quotation marks;
+\item \textbf{Source Code Architecture of \texttt{user/sh.c}}: Examining the tagged command structures, recursive execution in \texttt{runcmd()}, and the explicit parent-process handling of the \texttt{cd} command;
 \end{utmenumerate}
 
 \chapter{System Call Verification and Sleep Implementation}
@@ -52,7 +52,7 @@ The source capture shows the system-call declaration in the copied header (Figur
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_1_grep_user_h.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig1_1_grep_user_h.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: System call declaration verified within user/user.h.}
 \label{fig:l4_grep_user_h}
 \end{figure}
@@ -62,7 +62,7 @@ The \texttt{sleep} utility serves as an interface between command-line arguments
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_2_updated_sleep_c.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig1_2_updated_sleep_c.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Implementation of user/sleep.c with input validation.}
 \label{fig:l4_updated_sleep}
 \end{figure}
@@ -97,7 +97,7 @@ $
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig1_3_sleep_run.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig1_3_sleep_run.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: xv6 boot, \texttt{sleep 20}, and the no-argument usage message.}
 \label{fig:l4_sleep_run}
 \end{figure}
@@ -135,7 +135,7 @@ The Bash capture shows the nine shell commands run on Dev1 Debian GNU/Linux 13. 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_1_bash_commands.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig2_1_bash_commands.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Bash results for command rows 1 through 9.}
 \label{fig:l4_bash_commands}
 \end{figure}
@@ -144,7 +144,7 @@ The xv6 capture shows nine shell commands. An interaction tested Up, Tab, and Ct
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_2_xv6_commands.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig2_2_xv6_commands.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: xv6 QEMU results for comparison rows 1 through 9.}
 \label{fig:l4_xv6_commands}
 \end{figure}
@@ -154,31 +154,33 @@ The QEMU capture shows that \texttt{cd d} succeeds at a prompt, a later unqualif
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig2_3_cd_ls_failure.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig2_3_cd_ls_failure.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: path lookup after changing directories in xv6.}
 \label{fig:l4_cd_ls_failure}
 \end{figure}
 
 \section{Answers to Part 2 Observe questions}
 \begin{utmenumerate}
-\item \textbf{List the features both shells have, and the ones only Bash has.} \\
-\textbf{Features in both}: Direct command execution, file descriptor redirection (\texttt{<}, \texttt{>}), pipelines (\texttt{|}), parenthesized command grouping, sequential execution (\texttt{;}), and asynchronous background execution (\texttt{\&}). The grouped xv6 command in the test returned \texttt{2 2 4}. \\
-\textbf{Features only in Bash}: Globbing (\texttt{*}, \texttt{?}, \texttt{[...]}), environment variables (\texttt{\$VAR}), quote processing (\texttt{"..."}, \texttt{'...'}), conditional operators (\texttt{\&\&}, \texttt{||}), automatic \texttt{PATH} search, history search, and tab completion.
-\item \textbf{In xv6, \texttt{ls} stops working after \texttt{cd d}. Why? Find a way to run \texttt{ls} from inside \texttt{d} anyway.} \\
-At the top-level prompt, \texttt{cd d} succeeds. The xv6 shell has no \texttt{PATH} lookup, so \texttt{ls} is resolved relative to \texttt{d} and fails. Figure~\ref{fig:l4_cd_ls_failure} shows the working relative path \texttt{../ls ../README}, which explicitly invokes the executable in the parent directory.
-\item \textbf{Which missing feature would you miss most in daily work, and which would be easiest to add?} \\
-\textbf{Most missed}: \texttt{PATH} directory resolution and tab completion/history. Without \texttt{PATH}, changing directories renders all core utilities inaccessible unless typed with full paths. \\
-\textbf{Easiest to add}: A fallback path search in \texttt{user/sh.c}. If \texttt{exec(cmd, argv)} returns failure, prepend \texttt{"/"} or \texttt{"/bin/"} to \texttt{cmd} and re-execute before returning an error to the user.
+\item \textbf{List the features both shells have, and the ones only Bash has.} \\ \textbf{Features in both}: Direct command execution, file descriptor redirection (\texttt{<}, \texttt{>}), pipelines (\texttt{|}), parenthesized command grouping, sequential execution (\texttt{;}), and asynchronous background execution (\texttt{\&}). The grouped xv6 command in the test returned \texttt{2 2 4}. \\ \textbf{Features only in Bash}: Globbing (\texttt{*}, \texttt{?}, \texttt{[...]}), environment variables (\texttt{\$VAR}), quote processing (\texttt{"..."}, \texttt{'...'}), conditional operators (\texttt{\&\&}, \texttt{||}), automatic \texttt{PATH} search, history search, and tab completion;
+\item \textbf{In xv6, \texttt{ls} stops working after \texttt{cd d}. Why? Find a way to run \texttt{ls} from inside \texttt{d} anyway.} \\ At the top-level prompt, \texttt{cd d} succeeds. The xv6 shell has no \texttt{PATH} lookup, so \texttt{ls} is resolved relative to \texttt{d} and fails. Figure~\ref{fig:l4_cd_ls_failure} shows the working relative path \texttt{../ls ../README}, which explicitly invokes the executable in the parent directory;
+\item \textbf{Which missing feature would you miss most in daily work, and which would be easiest to add?} \\ \textbf{Most missed}: \texttt{PATH} directory resolution and tab completion/history. Without \texttt{PATH}, changing directories renders all core utilities inaccessible unless typed with full paths. \\ \textbf{Easiest to add}: A fallback path search in \texttt{user/sh.c}. If \texttt{exec(cmd, argv)} returns failure, prepend \texttt{"/"} or \texttt{"/bin/"} to \texttt{cmd} and re-execute before returning an error to the user;
 \end{utmenumerate}
 
 \chapter{Argument Tokenization: Who Expands Wildcards?}
 
 \section{Implementation of argument vector inspectors}
-To demonstrate precisely when and where argument expansions occur, identical inspection utilities were authored for xv6 (\texttt{user/args.c}) and Linux (\texttt{args\_linux.c}). Each prints \texttt{argc} and prints each \texttt{argv[i]} string enclosed in brackets.
+To compare how Bash and xv6 prepare arguments, identical inspection utilities were authored for xv6 (\texttt{user/args.c}) and Linux (\texttt{args\_linux.c}). Each prints \texttt{argc} and each \texttt{argv[i]} string enclosed in brackets. Figure \ref{fig:l4_argv_concept} illustrates this boundary at a high level; it does not specify Bash's complete expansion-order algorithm.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_1_args_uprogs.jpg}
+\includegraphics[width=0.88\textwidth]{assets/concept-shell-arguments.png}
+\caption{Conceptual illustration of shell argument preparation before program execution; not an execution capture or a complete Bash expansion-order specification.}
+\label{fig:l4_argv_concept}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{assets/fig3_1_args_uprogs.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Source of user/args.c and registration within xv6 Makefile UPROGS.}
 \label{fig:l4_args_uprogs}
 \end{figure}
@@ -188,17 +190,17 @@ The copied \texttt{Makefile} registers both \texttt{\$U/\_sleep} and \texttt{\$U
 \section{Experimental comparison across shells}
 Both implementations were run with all four requested argument patterns. The Linux capture used a working directory containing \texttt{a.c}, \texttt{b.c}, and \texttt{args\_linux.c}; the xv6 capture shows the arguments received in QEMU:
 \begin{enumerate}
-\item \texttt{args one   two   three}
-\item \texttt{args *.c "x y"}
-\item \texttt{args \$HOME}
-\item \texttt{args 'single quoted'}
+\item \texttt{args one   two   three};
+\item \texttt{args *.c "x y"};
+\item \texttt{args \$HOME};
+\item \texttt{args 'single quoted'};
 \end{enumerate}
 
 Figure \ref{fig:l4_args_xv6} shows the actual output from all four xv6 invocations.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_2_args_xv6.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig3_2_args_xv6.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: xv6 output for all four \texttt{args} patterns.}
 \label{fig:l4_args_xv6}
 \end{figure}
@@ -207,7 +209,7 @@ Figure \ref{fig:l4_args_linux} shows the actual Linux Bash output from the same 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig3_3_args_linux.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig3_3_args_linux.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Linux Bash output for all four \texttt{args} patterns.}
 \label{fig:l4_args_linux}
 \end{figure}
@@ -232,11 +234,9 @@ argv[1] = [*.c]
 argv[2] = ["x]
 argv[3] = [y"]
 \end{verbatim}
-The Linux program received 5 arguments because the wildcard matched three source files and the quoted phrase remained one argument. xv6 received 4 arguments: it preserved \texttt{*.c} literally and split \texttt{"x y"} into two strings with quotes intact.
-\item \textbf{Who turns \texttt{*.c} into file names and removes quotes: the program, the kernel, or the shell?} \\
-\textbf{The shell}. The shell performs lexical scanning, globbing, variable expansion, and quote stripping before invoking \texttt{exec()}. The kernel merely accepts an array of already-expanded null-terminated strings and copies them to the new process stack. The user program receives the strings exactly as prepared by the shell.
-\item \textbf{What happened to the extra spaces in \texttt{one   two   three}?} \\
-The shell treats spaces as argument separators (delimiters). Multiple contiguous spaces are consumed by the lexer during tokenization, so only the non-whitespace tokens (\texttt{"one"}, \texttt{"two"}, \texttt{"three"}) are inserted into the argument array.
+The Linux program received 5 arguments because the wildcard matched three source files and the quoted phrase remained one argument. xv6 received 4 arguments: it preserved \texttt{*.c} literally and split \texttt{\"x y\"} into two strings with quotes intact;
+\item \textbf{Who turns \texttt{*.c} into file names and removes quotes: the program, the kernel, or the shell?} \\ \textbf{The shell}. The shell performs lexical scanning, globbing, variable expansion, and quote stripping before invoking \texttt{exec()}. The kernel merely accepts an array of already-expanded null-terminated strings and copies them to the new process stack. The user program receives the strings exactly as prepared by the shell;
+\item \textbf{What happened to the extra spaces in \texttt{one   two   three}?} \\ The shell treats spaces as argument separators (delimiters). Multiple contiguous spaces are consumed by the lexer during tokenization, so only the non-whitespace tokens (\texttt{"one"}, \texttt{"two"}, \texttt{"three"}) are inserted into the argument array;
 \end{utmenumerate}
 
 \chapter{Architecture of user/sh.c}
@@ -244,16 +244,16 @@ The shell treats spaces as argument separators (delimiters). Multiple contiguous
 \section{Command representations and syntax nodes}
 The xv6 shell represents commands using tagged C structures. Five command types are defined on lines 8--12 of \texttt{user/sh.c} (Figure \ref{fig:l4_cmd_kinds}):
 \begin{itemize}
-\item \texttt{EXEC (1)}: Basic command execution; no operator.
-\item \texttt{REDIR (2)}: Redirection of I/O; produced by \texttt{<} and \texttt{>}.
-\item \texttt{PIPE (3)}: Inter-process communication; produced by \texttt{|}.
-\item \texttt{LIST (4)}: Sequential commands; produced by \texttt{;}.
-\item \texttt{BACK (5)}: Asynchronous background execution; produced by \texttt{\&}.
+\item \texttt{EXEC (1)}: Basic command execution; no operator;
+\item \texttt{REDIR (2)}: Redirection of I/O; produced by \texttt{<} and \texttt{>};
+\item \texttt{PIPE (3)}: Inter-process communication; produced by \texttt{|};
+\item \texttt{LIST (4)}: Sequential commands; produced by \texttt{;};
+\item \texttt{BACK (5)}: Asynchronous background execution; produced by \texttt{\&};
 \end{itemize}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_1_cmd_kinds.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_1_cmd_kinds.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Command types defined in user/sh.c.}
 \label{fig:l4_cmd_kinds}
 \end{figure}
@@ -263,18 +263,18 @@ When a command line is parsed, \texttt{parsecmd()} constructs an abstract syntax
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_2_runcmd_switch.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_2_runcmd_switch.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Dispatch switch inside runcmd() handling syntax tree execution.}
 \label{fig:l4_runcmd_switch}
 \end{figure}
 
 The execution logic handles each node type:
 \begin{itemize}
-\item For \texttt{EXEC}, it invokes \texttt{exec(ecmd->argv[0], ecmd->argv)}.
-\item For \texttt{REDIR}, it closes the targeted descriptor, opens the named file with the requested flags, and recursively evaluates the inner command.
-\item For \texttt{PIPE}, it calls \texttt{pipe()}, forks two sub-processes, rewires descriptors 0 and 1 using \texttt{dup()}, closes pipe ends, and waits for both children to terminate.
-\item For \texttt{LIST}, it forks a child to run the left command, waits for it, and then runs the right command.
-\item For \texttt{BACK}, it forks a child to run the command and immediately returns without waiting.
+\item For \texttt{EXEC}, it invokes \texttt{exec(ecmd->argv[0], ecmd->argv)};
+\item For \texttt{REDIR}, it closes the targeted descriptor, opens the named file with the requested flags, and recursively evaluates the inner command;
+\item For \texttt{PIPE}, it calls \texttt{pipe()}, forks two sub-processes, rewires descriptors 0 and 1 using \texttt{dup()}, closes pipe ends, and waits for both children to terminate;
+\item For \texttt{LIST}, it forks a child to run the left command, waits for it, and then runs the right command;
+\item For \texttt{BACK}, it forks a child to run the command and immediately returns without waiting;
 \end{itemize}
 
 \section{Built-in cd handling and process boundaries}
@@ -282,19 +282,16 @@ Lines 166--170 of \texttt{user/sh.c} reveal that \texttt{cd} is explicitly inter
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/fig4_3_cd_handling.jpg}
+\includegraphics[width=0.88\textwidth]{assets/fig4_3_cd_handling.jpg}
 \caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Parent-process handling of cd built-in in user/sh.c.}
 \label{fig:l4_cd_handling}
 \end{figure}
 
 \section{Answers to Part 4 Observe questions}
 \begin{utmenumerate}
-\item \textbf{Name the five kinds of command the xv6 shell knows and the character that produces each.} \\
-\texttt{EXEC} (basic command, no special character), \texttt{REDIR} (produced by \texttt{<} and \texttt{>}), \texttt{PIPE} (produced by \texttt{|}), \texttt{LIST} (produced by \texttt{;}), and \texttt{BACK} (produced by \texttt{\&}).
-\item \textbf{Where is \texttt{cd} handled, and why is it not run as a separate program?} \\
-\texttt{cd} is handled in \texttt{main()} of \texttt{user/sh.c} prior to the \texttt{fork()} call. It cannot be run as a separate program because each child process operates in its own isolated address space and process descriptor table. If \texttt{cd} were an external program, only the child process would change its directory; upon child exit, the parent shell would remain in the original directory. Therefore, \texttt{chdir()} must execute directly in the parent shell process.
-\item \textbf{Search \texttt{sh.c} for any code that handles \texttt{*} or \texttt{\$}. What does that explain about Part 2?} \\
-Searching \texttt{sh.c} reveals zero code handling \texttt{*} or \texttt{\$}. Neither globbing nor variable expansion logic exists in the parser. This explains why \texttt{echo \$HOME} and \texttt{ls *} print literal characters in xv6: the shell treats them as ordinary alphanumeric tokens and passes them uninspected to \texttt{exec()}.
+\item \textbf{Name the five kinds of command the xv6 shell knows and the character that produces each.} \\ \texttt{EXEC} (basic command, no special character), \texttt{REDIR} (produced by \texttt{<} and \texttt{>}), \texttt{PIPE} (produced by \texttt{|}), \texttt{LIST} (produced by \texttt{;}), and \texttt{BACK} (produced by \texttt{\&});
+\item \textbf{Where is \texttt{cd} handled, and why is it not run as a separate program?} \\ \texttt{cd} is handled in \texttt{main()} of \texttt{user/sh.c} prior to the \texttt{fork()} call. It cannot be run as a separate program because each child process operates in its own isolated address space and process descriptor table. If \texttt{cd} were an external program, only the child process would change its directory; upon child exit, the parent shell would remain in the original directory. Therefore, \texttt{chdir()} must execute directly in the parent shell process;
+\item \textbf{Search \texttt{sh.c} for any code that handles \texttt{*} or \texttt{\$}. What does that explain about Part 2?} \\ Searching \texttt{sh.c} reveals zero code handling \texttt{*} or \texttt{\$}. Neither globbing nor variable expansion logic exists in the parser. This explains why \texttt{echo \$HOME} and \texttt{ls *} print literal characters in xv6: the shell treats them as ordinary alphanumeric tokens and passes them uninspected to \texttt{exec()};
 \end{utmenumerate}
 
 \utmconclusions
@@ -302,7 +299,6 @@ The captures distinguish Bash expansion from xv6 token splitting, while the sour
 
 \begin{thebibliography}{9}
 \bibitem{cox} Cox, R., Kaashoek, M. F., \& Morris, R. (2023). \textit{xv6: a simple, Unix-like teaching operating system}. MIT CSAIL.
-\bibitem{patterson} Patterson, D. A., \& Hennessy, J. L. (2017). \textit{Computer Organization and Design RISC-V Edition}. Morgan Kaufmann.
 \bibitem{love} Love, R. (2013). \textit{Linux System Programming: Talking Directly to the Kernel and C Library} (2nd ed.). O'Reilly Media.
 \bibitem{bach} Bach, M. J. (1986). \textit{The Design of the UNIX Operating System}. Prentice-Hall.
 \end{thebibliography}

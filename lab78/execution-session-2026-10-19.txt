@@ -1,0 +1,214 @@
+Lab 7 | Compiler and build
+Live execution | 2026-10-19 16:09:27 
+
+$ uname -sr
+Linux 6.18.33.2-microsoft-standard-WSL2
+$ gcc --version
+gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+$ gcc -Wall -Wextra -o run run.c
+$ gcc -Wall -Wextra -o zombie zombie.c
+$ gcc -Wall -Wextra -o redirect redirect.c
+$ gcc -Wall -Wextra -o pipeline pipeline.c
+$ gcc -Wall -Wextra -o pipeline3 pipeline3.c
+$ gcc -Wall -Wextra -o run-date run-date.c
+$ gcc -Wall -Wextra -o run-missing run-missing.c
+$ gcc -Wall -Wextra -o pipeline-broken pipeline-broken.c
+All eight builds exited with status 0.
+Lab 7 | fork, exec and wait: ls, date, missing program
+Live execution | 2026-10-19 16:10:47 
+
+$ ./run
+parent: my PID is 1795
+child:  my PID is 1796, my parent is 1795
+total 148
+-rwxr-xr-x 1 root root 16304 Oct 19 16:09 pipeline
+-rwxr-xr-x 1 root root 16312 Oct 19 16:09 pipeline-broken
+-rwxr-xr-x 1 root root 16312 Oct 19 16:09 pipeline3
+-rwxr-xr-x 1 root root 16344 Oct 19 16:09 redirect
+-rwxr-xr-x 1 root root 16400 Oct 19 16:09 run
+-rwxr-xr-x 1 root root 16400 Oct 19 16:09 run-date
+-rwxr-xr-x 1 root root 16408 Oct 19 16:09 run-missing
+drwxr-xr-x 2 root root  4096 Oct 19 16:10 sources
+-rwxr-xr-x 1 root root 16440 Oct 19 16:09 zombie
+parent: child 1796 ended with status 0
+$ ./run-date
+parent: my PID is 1797
+child:  my PID is 1798, my parent is 1797
+Mon Oct 19 16:10:47 EEST 2026
+parent: child 1798 ended with status 0
+$ ./run-missing
+parent: my PID is 1799
+child:  my PID is 1800, my parent is 1799
+exec: No such file or directory
+parent: child 1800 ended with status 127
+Lab 7 | Zombie visible before parent waitpid
+Live execution | 2026-10-19 16:11:20 
+
+$ ./zombie >/dev/null &
+$ ps -o pid,ppid,stat,cmd -p 1893 --ppid 1893
+    PID    PPID STAT CMD
+   1893    1554 S+   ./zombie
+   1894    1893 Z+   [ls] <defunct>
+Lab 7 | Child reaped after waitpid
+Live execution | 2026-10-19 16:11:44 
+
+$ wait 1893
+wait returned 0
+$ ps -o pid,ppid,stat,cmd -p 1893 --ppid 1893
+    PID    PPID STAT CMD
+ps exit status: 1 (no matching parent/child rows)
+Lab 7 | Redirection: descriptor 1 and out.txt
+Live execution | 2026-10-19 16:11:55 
+
+$ ./redirect
+open gave descriptor 1
+done: the listing is in out.txt
+$ head -n 8 out.txt
+total 148
+-rw-r--r-- 1 root root     0 Oct 19 16:11 out.txt
+-rwxr-xr-x 1 root root 16304 Oct 19 16:09 pipeline
+-rwxr-xr-x 1 root root 16312 Oct 19 16:09 pipeline-broken
+-rwxr-xr-x 1 root root 16312 Oct 19 16:09 pipeline3
+-rwxr-xr-x 1 root root 16344 Oct 19 16:09 redirect
+-rwxr-xr-x 1 root root 16400 Oct 19 16:09 run
+-rwxr-xr-x 1 root root 16400 Oct 19 16:09 run-date
+Lab 7 | Manual pipelines compared with shell pipelines
+Live execution | 2026-10-19 16:12:07 
+
+$ bash -c ./pipeline
+172
+$ bash -c 'ls /etc | wc -l'
+172
+$ bash -c ./pipeline3
+108
+$ bash -c 'ls /usr/bin | grep x | wc -l'
+108
+Lab 7 | Intentionally leaked writer: blocked wc, bounded cleanup
+Live execution | 2026-10-19 16:12:21 
+
+$ ./pipeline-broken &
+$ ps -o pid,ppid,pgid,stat,cmd -p 2005 --ppid 2005
+    PID    PPID    PGID STAT CMD
+   2005    1554    2005 Ss   ./pipeline-broken
+   2007    2005    2005 S    wc -l
+Observed: parent still waits; wc is still alive; ls has finished.
+$ kill -TERM -- -2005
+The isolated broken-pipeline process group was terminated.
+Lab 8 | Clean xv6 build, registrations and QEMU boot
+Live execution | 2026-10-19 16:12:35 
+
+$ riscv64-unknown-elf-gcc --version
+riscv64-unknown-elf-gcc (13.2.0-11ubuntu1+12) 13.2.0
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+$ qemu-system-riscv64 --version
+QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
+$ grep -E '_run|_pingpong|_primes' Makefile
+	$U/_run\
+	$U/_runls\
+	$U/_runmissing\
+	$U/_pingpong\
+	$U/_primes\
+$ make -s clean
+$ make -s fs.img kernel/kernel
+riscv64-unknown-elf-ld: warning: user/_forktest has a LOAD segment with RWX permissions
+nmeta 47 (boot, super, log blocks 31, inode blocks 13, bitmap blocks 1) blocks 1953 total 2000
+balloc: first 1172 blocks have been allocated
+balloc: write bitmap block at sector 46
+riscv64-unknown-elf-ld: warning: kernel/kernel has a LOAD segment with RWX permissions
+Clean xv6 build exited with status 0.
+$ make -s qemu
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ Lab 8 | Canonical run: child becomes echo
+Live execution | 2026-10-19 16:13:21 
+
+
+$ run
+parent pid: 3
+child pid: 4
+hello from the child
+child 4 ended with status 0
+$ Lab 8 | Successful ls exec variant
+Live execution | 2026-10-19 16:13:32 
+
+
+$ runls
+parent pid: 5
+child pid: 6
+.              1 1 1024
+..             1 1 1024
+README         2 2 2473
+cat            2 3 36512
+echo           2 4 35360
+forktest       2 5 17080
+grep           2 6 39944
+init           2 7 35808
+kill           2 8 35280
+ln             2 9 35096
+ls             2 10 38624
+mkdir          2 11 35344
+rm             2 12 35328
+sh             2 13 58344
+sleep          2 14 35080
+args           2 15 35080
+stressfs       2 16 36208
+usertests      2 17 186256
+grind          2 18 51744
+wc             2 19 37488
+zombie         2 20 34680
+logstress      2 21 37280
+run            2 22 35608
+runls          2 23 35576
+runmissing     2 24 35592
+pingpong       2 25 36696
+primes         2 26 38024
+forphan        2 27 36104
+dorphan        2 28 35552
+console        3 29 0
+child 6 ended with status 0
+$ Lab 8 | Missing program: exec returns and child exits 1
+Live execution | 2026-10-19 16:14:07 
+
+
+$ runmissing
+parent pid: 7
+child pid: 8
+exec failed
+child 8 ended with status 1
+$ Lab 8 | Two pipes: ping before pong
+Live execution | 2026-10-19 16:14:18 
+
+
+$ pingpong
+10: received ping
+9: received pong
+$ Lab 8 | Optional process chain: primes from 2 through 35
+Live execution | 2026-10-19 16:14:28 
+
+
+$ primes
+prime 2
+prime 3
+prime 5
+prime 7
+prime 11
+prime 13
+prime 17
+prime 19
+prime 23
+prime 29
+prime 31
+$ 
+QEMU exited cleanly. All execution screenshots captured.

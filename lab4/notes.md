@@ -34,20 +34,20 @@ The matrix records observed output for the nine shell-command rows in Bash and x
 
 | Command / Feature | Bash (Linux) Behavior | xv6 Shell Behavior | Underlying Mechanism / Difference |
 | :--- | :--- | :--- | :--- |
-| **Redirection**<br>`echo hello > f ; cat < f` | Writes `hello` to `f`, reads and prints `hello`. | Supported. Creates `f` and reads via `cat < f`. | Both shells open file descriptors with `O_CREATE \| O_WRONLY` (for `>`) and `O_RDONLY` (for `<`) using `dup()`/`close()`. |
-| **Pipe**<br>`ls \| grep READ` | Pipes directory stream to `grep`, outputs matching line. | Supported. `ls` output passes through kernel pipe buffer. | Both implement `pipe()`, `fork()`, and file descriptor redirection (`dup()`). |
-| **Grouping / List**<br>`(echo a; echo b) \| wc` | Prints `2 2 4`. | Prints `2 2 4`. | Both tested shells accept this parenthesized list in a pipeline; xv6 parses a `PAR` command and `LIST` nodes. |
+| **Redirection**<br>`echo hello > f ; cat < f` | Writes `hello` to `f`, reads and prints `hello`. | Supported. Creates `f` and reads via `cat < f`. | Bash opens each target and arranges the requested descriptor. In this xv6 source, `runcmd()` closes descriptor 1 or 0, then `open()` returns the lowest free descriptor (`user/sh.c`, lines 83–91); xv6-specific `O_CREATE` flags are not Bash flags. |
+| **Pipe**<br>`ls \| grep READ` | Pipes directory stream to `grep`, outputs matching line. | Supported. `ls` output passes through kernel pipe buffer. | Each shell connects the producer's stdout to the consumer's stdin through a kernel pipe. xv6 does this with `pipe()`, `fork1()`, `close()`, and `dup()` in `runcmd()` (`user/sh.c`, lines 101–123). |
+| **Grouping / List**<br>`(echo a; echo b) \| wc` | Prints `2 2 4`. | Prints `2 2 4`. | The tested outputs match. xv6 has no `PAR` command node: `parseexec()` delegates to `parseblock()`, which returns the nested list; `parsepipe()` then uses that list as the producer side (`user/sh.c`, lines 367–378 and 405–431). |
 | **Sequence**<br>`echo one ; echo two` | Prints `one`, then `two`. | Supported. Prints `one`, then `two`. | xv6 defines `LIST` command type (line 11 `#define LIST 4`) separated by `;`. |
 | **Background**<br>`echo bg &` | Launches asynchronous job in background. | Supported. Spawns child process without calling `wait()`. | xv6 defines `BACK` command type (line 12 `#define BACK 5`) producing `fork()` without `wait()`. |
 | **Globbing**<br>`ls *` | Expands `*` to all directory entries. | Fails. Looks for a literal file named `*`. | Bash expands glob patterns before `execve()`; xv6 shell performs no wildcard expansion. |
 | **Variables**<br>`echo $HOME` | Expands to `/home/<user>`. | Prints `$HOME` literally. | xv6 shell has no environment variable table or `$` parser. |
-| **Quotes**<br>`echo "a b"` | Preserves space, passes single argument `a b`. | Passes `"a` and `b"` as separate tokens (or literal quotes). | xv6 tokenizer splits strictly on spaces and has no quote state machine. |
+| **Quotes**<br>`echo "a b"` | Preserves space, passes single argument `a b`. | Passes `"a` and `b"` as separate tokens including the quote characters. | xv6 tokenizer splits on its whitespace set and has no quote state machine. |
 | **PATH / Lookup**<br>`mkdir d ; cd d ; ls ..` | Lists parent-directory entries. | `exec cd failed`; `ls ..` then lists entries from the unchanged root directory. | Bash handles `cd` in the command list and searches `$PATH`; xv6 tries `exec cd` inside the list. At a prompt, `cd d` works, but `ls` fails without `$PATH`. |
 | **Line Editing**<br>Arrows, Tab, Ctrl+R | Up-arrow history, Tab completion, and Ctrl+R reverse search were confirmed interactively. | Up/Ctrl+R showed no history or search; Tab at an empty prompt produced no completion list. | Path-prefix completion was not tested. Source inspection found no history, completion, or reverse-search handler in the xv6 console. |
 
 ### Answers to Observe Questions (Part 2)
 1. **List the features both shells have, and the ones only bash has:**
-   - **Both shells have**: Basic command execution (`exec`), input/output redirection (`<`, `>`), pipes (`|`), the tested parenthesized list in a pipeline (`(echo a; echo b) | wc`), sequential command execution (`;`), and background execution (`&`). The grouped xv6 command returned `2 2 4`.
+   - **Both shells have**: Basic command execution, input/output redirection (`<`, `>`), pipes (`|`), the tested parenthesized list in a pipeline (`(echo a; echo b) | wc`), sequential command execution (`;`), and background execution (`&`). The grouped xv6 command returned `2 2 4`. In xv6 this input is represented by nested `LIST` and `PIPE` nodes; there is no `PAR` node.
    - **Only bash has**: Globbing (`*`, `?`, `[...]`), environment variables (`$VAR`), quote processing (`"..."`, `'...'`), conditional chaining (`&&`, `||`), PATH resolution, command history, and tab completion.
 2. **In xv6, `ls` stops working after `cd d`. Why? Find a way to run `ls` from inside `d` anyway:**
    - At the prompt, `cd d` succeeds. xv6 has no `$PATH` lookup, so `ls` is resolved relative to `d` and fails.
@@ -113,7 +113,7 @@ argv[3] = [y"]
 2. **Who turns `*.c` into file names and removes quotes: the program, the kernel, or the shell?**
    - **The shell**. The shell performs lexical scanning, globbing, variable expansion, and quote removal prior to invoking `exec()`. The kernel merely accepts the final array of null-terminated strings (`char *argv[]`) and copies them to the child process's stack. The user program receives whatever pointers the kernel placed in its address space.
 3. **What happened to the extra spaces in `one   two   three`?**
-   - The shell parses whitespace as argument delimiters (Internal Field Separator). Consecutive spaces are discarded by the lexer during argument tokenization, resulting in exactly three distinct argument strings: `"one"`, `"two"`, and `"three"`.
+   - Both shells treat these literal spaces as command-line word boundaries, and xv6's `gettoken()` skips every character in its `whitespace[]` set before reading the next token (`user/sh.c`, lines 268–313). The output contains three argument strings: `"one"`, `"two"`, and `"three"`. Bash's `IFS` is relevant to word splitting on unquoted expansion results, a later expansion step; it is not the lexer for literal spaces.
 
 ---
 
@@ -145,6 +145,6 @@ argv[3] = [y"]
          fprintf(2, "cannot cd %s\n", cmd+3);
      }
      ```
-   - It cannot be run as a separate program because each child program executes in a separate process address space after `fork()`. If `cd` were an external binary, only the child process would change its directory, leaving the shell in the original working directory upon process termination.
+   - It cannot be run as a separate program because `fork()` gives the child separate process state for its current directory. If `cd` were external, `chdir()` in the child would change only that child directory, leaving the shell process unchanged.
 3. **Search `sh.c` for any code that handles `*` or `$`. What does that explain about Part 2?**
-   - Searching `sh.c` for `*` or `$` yields zero parsing logic for glob expansion or variable substitution. The characters `*` and `$` are simply treated as normal alphanumeric text characters. This confirms why xv6 outputs literal `$HOME` and `*.c` without expansion.
+   - Searching `sh.c` for `*` or `$` yields zero parsing logic for glob expansion or variable substitution. The characters `*` and `$` are ordinary word characters to `gettoken()`. This confirms why xv6 outputs literal `$HOME` and `*.c` without expansion.

@@ -1,4 +1,4 @@
-\documentclass{utmreport}
+\documentclass{assets/utmreport}
 
 \usepackage{booktabs,amssymb,float,graphicx,listings}
 
@@ -6,7 +6,7 @@
 
 \selectlanguage{english}
 
-\utmlogo{utm-logo.jpeg}
+\utmlogo{assets/utm-logo.jpeg}
 
 \institution{Technical University of Moldova}
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
@@ -19,6 +19,8 @@
 \supervisor{Reițman Patricia}{univ. assist.}
 \cityyear{Chișinău}{2026}
 
+\setlength{\emergencystretch}{3em}
+
 \begin{document}
 \makeutmreporttitlepage
 \tableofcontents
@@ -30,16 +32,18 @@ This combined laboratory report investigates the principles, mechanisms, and int
 Part I (Laboratory 5) examines the Linux filesystem from user space under an unprivileged user (\texttt{ubuntu}, UID 1000). It covers filesystem hierarchies, UsrMerge namespace unification, device inodes, inode-to-name decoupling, hard and symbolic link semantics, sparse file allocation, Discretionary Access Control (DAC) permission mechanics, and \texttt{/proc} introspection, including all four optional stretch problems (magic numbers, setuid auditing, open file descriptor unlinking, and loopback ext4 inode sizing).
 
 Part II (Laboratory 6) dives into the xv6 filesystem internals. It analyzes on-disk directory tables, the structural layout of \texttt{struct dinode}, theoretical and physical capacity limits from \texttt{kernel/fs.h}, and the separation between directory unlinking in \texttt{sys\_unlink()} and block deallocation in \texttt{iput()} and \texttt{itrunc()}. Two user-space programs are implemented in C: \texttt{mystat.c} (inode and link inspection) and \texttt{find.c} (recursive directory search with the \texttt{-n} inode display stretch flag).
-\utmkeywords{operating systems, linux vfs, xv6, riscv, inodes, hard links, symbolic links, file permissions, setuid, directory traversal, storage limits}
+\utmkeywords{filesystems, linux, xv6, inodes, links, permissions, directory traversal}
 \end{utmabstract}
 
 \utmintroduction
+The command/output text in this supplementary report is a historical record recovered with the earlier reports. Its terminal panels were reconstructed by a drawing script and are not original screenshots; their values have not been independently remeasured in this revision. The implementation discussion can be checked against the included xv6 source\cite{xv6}. For current explanations and source files, use the separate Lab 5 and Lab 6 reports. The original handouts were not locally recovered, so the archived scope is not a fresh compliance claim.
+
 Filesystems are among the foundational abstractions of modern operating systems. They bridge persistent storage media and running processes by transforming raw block sectors into structured, human-navigable namespaces. Under Unix and POSIX semantics, filesystems extend beyond persistent disks: device drivers, interprocess communication pipes, and live kernel statistics all present uniform file descriptor interfaces.
 
 This combined report documents the theoretical and practical investigation of both a full-scale production kernel (Linux) and an educational operating system (xv6):
 \begin{utmenumerate}
-\item \textbf{Laboratory 5 (Track A: Linux Warm-up)}: Direct shell inspection of filesystem types, inode table mechanics, hard and symbolic link lifecycles, space allocation in sparse files, Discretionary Access Control (DAC) permissions, process identification in \texttt{/proc}, and four advanced system experiments.
-\item \textbf{Laboratory 6 (Track B: xv6 Filesystem Internals)}: Code-level tracing and live execution in the xv6 RISC-V kernel, developing \texttt{user/mystat.c} and \texttt{user/find.c}, evaluating on-disk block and inode layouts, analyzing link count decrement versus block deallocation timing, and exploring structural filesystem limits.
+\item \textbf{Laboratory 5 (Track A: Linux Warm-up)}: Direct shell inspection of filesystem types, inode table mechanics, hard and symbolic link lifecycles, space allocation in sparse files, Discretionary Access Control (DAC) permissions, process identification in \texttt{/proc}, and four advanced system experiments;
+\item \textbf{Laboratory 6 (Track B: xv6 Filesystem Internals)}: Code-level tracing and live execution in the xv6 RISC-V kernel, developing \texttt{user/mystat.c} and \texttt{user/find.c}, evaluating on-disk block and inode layouts, analyzing link count decrement versus block deallocation timing, and exploring structural filesystem limits;
 \end{utmenumerate}
 
 \part{Laboratory 5: The File System with Your Own Hands (Linux)}
@@ -62,8 +66,8 @@ drwxrwxrwt  10 root root 4096 Oct 12 15:38 /tmp
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig1_tree_and_types.jpg}
-\caption{Terminal session: inspecting system root, device nodes, and file types.}
+\includegraphics[width=0.92\textwidth]{assets/fig1_tree_and_types.jpg}
+\caption{Reconstructed terminal illustration, not an original capture: inspecting system root, device nodes, and file types.}
 \label{fig:comb_l5_tree}
 \end{figure}
 
@@ -89,8 +93,8 @@ On modern Linux distributions, \texttt{/bin} is a symbolic link pointing to \tex
 \section{Device Nodes in /dev}
 Special device nodes do not consume disk blocks for file content. Instead, their inodes store major and minor numbers:
 \begin{itemize}
-\item \textbf{Character Device}: \texttt{/dev/null} (major 1, minor 3) and \texttt{/dev/console} (major 5, minor 1).
-\item \textbf{Block Device}: \texttt{/dev/sda} (major 8, minor 0) and \texttt{/dev/sdd} (major 8, minor 48), supporting block-level operations through the page cache.
+\item \textbf{Character Device}: \texttt{/dev/null} (major 1, minor 3) and \texttt{/dev/console} (major 5, minor 1);
+\item \textbf{Block Device}: \texttt{/dev/sda} (major 8, minor 0) and \texttt{/dev/sdd} (major 8, minor 48), supporting block-level operations through the page cache;
 \end{itemize}
 
 \section{Storage Comparison: /var/log vs /usr}
@@ -126,8 +130,8 @@ hello
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig2_inodes_and_links.jpg}
-\caption{Terminal session: inode inspection, hard links, dangling symlinks, and sparse files.}
+\includegraphics[width=0.92\textwidth]{assets/fig2_inodes_and_links.jpg}
+\caption{Reconstructed terminal illustration, not an original capture: inode inspection, hard links, dangling symlinks, and sparse files.}
 \label{fig:comb_l5_inodes}
 \end{figure}
 
@@ -153,7 +157,7 @@ drwxr-xr-x 2 ubuntu ubuntu 4096 Oct 12 15:39 d
 $ mkdir d/x d/y ; ls -ld d
 drwxr-xr-x 4 ubuntu ubuntu 4096 Oct 12 15:39 d
 \end{verbatim}
-A directory starts with 2 links: its entry in the parent directory and the self-referencing `.` entry. Each subdirectory adds a `..` entry pointing back to the parent, incrementing the parent's link count to 4.
+Under the classic ext-style directory link model, a directory starts with 2 links: its entry in the parent directory and the self-referencing `.` entry. Each subdirectory adds a `..` entry pointing back to the parent, incrementing the parent's link count to 4. This count is filesystem-dependent; it is not a universal Linux invariant.
 
 \section{Sparse Files and Allocation Granularity}
 \begin{verbatim}
@@ -175,8 +179,8 @@ When the accessing user is the file owner, the kernel evaluates only the owner p
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig3_permissions.jpg}
-\caption{Terminal session: permission evaluation, umask verification, and directory traversal.}
+\includegraphics[width=0.92\textwidth]{assets/fig3_permissions.jpg}
+\caption{Reconstructed terminal illustration, not an original capture: permission evaluation, umask verification, and directory traversal.}
 \label{fig:comb_l5_perm}
 \end{figure}
 
@@ -205,8 +209,8 @@ The system disk \texttt{/dev/sdd} (1 TB, ext4) is mounted at `/` with 1\% utiliz
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig4_disks_and_proc.jpg}
-\caption{Terminal session: disk topology, mount attributes, and procfs inspection.}
+\includegraphics[width=0.92\textwidth]{assets/fig4_disks_and_proc.jpg}
+\caption{Reconstructed terminal illustration, not an original capture: disk topology, mount attributes, and procfs inspection.}
 \label{fig:comb_l5_disks}
 \end{figure}
 
@@ -214,16 +218,16 @@ The system disk \texttt{/dev/sdd} (1 TB, ext4) is mounted at `/` with 1\% utiliz
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig5_stretch.jpg}
-\caption{Terminal session: magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
+\includegraphics[width=0.92\textwidth]{assets/fig5_stretch.jpg}
+\caption{Reconstructed terminal illustration, not an original capture: magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
 \label{fig:comb_l5_stretch}
 \end{figure}
 
 \begin{itemize}
-\item \textbf{(a) Magic Numbers}: Inspecting \texttt{notes.txt} via \texttt{xxd} reveals the leading bytes \texttt{0x1f 0x8b}, identifying the gzip compression format per RFC 1952.
-\item \textbf{(b) Setuid Binaries}: Discovered setuid binaries include \texttt{passwd}, \texttt{su}, \texttt{sudo}, \texttt{mount}, \texttt{umount}, \texttt{polkit-agent-helper-1}, and \texttt{ssh-keysign}.
-\item \textbf{(c) Deleting Open Descriptors}: Unlinking an open file leaves \texttt{/proc/\$\$/fd/3 -> bigfile (deleted)}. Data blocks are freed only when descriptor 3 is closed via \texttt{exec 3<\&-}.
-\item \textbf{(d) Loopback Filesystem}: Creating a 64 MiB ext4 image formatted 16,384 inodes (one inode per 4 KiB block).
+\item \textbf{(a) Magic Numbers}: Inspecting \texttt{notes.txt} via \texttt{xxd} reveals the leading bytes \texttt{0x1f 0x8b}, identifying the gzip compression format per RFC 1952;
+\item \textbf{(b) Setuid Binaries}: Discovered setuid binaries include \texttt{passwd}, \texttt{su}, \texttt{sudo}, \texttt{mount}, \texttt{umount}, \texttt{polkit-agent-helper-1}, and \texttt{ssh-keysign};
+\item \textbf{(c) Deleting Open Descriptors}: Unlinking an open file leaves \texttt{/proc/\$\$/fd/3 -> bigfile (deleted)}. Data blocks are freed only when descriptor 3 is closed via \texttt{exec 3<\&-};
+\item \textbf{(d) Loopback Filesystem}: Creating a 64 MiB ext4 image formatted 16,384 inodes (one inode per 4 KiB block);
 \end{itemize}
 
 \part{Laboratory 6: Inside the xv6 File System}
@@ -249,8 +253,8 @@ console        3 24 0
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig1_xv6_ls.jpg}
-\caption{QEMU terminal capture: directory listing and type decoding in xv6.}
+\includegraphics[width=0.92\textwidth]{assets/fig1_xv6_ls.jpg}
+\caption{Reconstructed xv6 terminal illustration, not an original capture: directory listing and type decoding in xv6.}
 \label{fig:comb_l6_ls}
 \end{figure}
 
@@ -310,8 +314,8 @@ $ cat r2 | wc
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig2_mystat_links.jpg}
-\caption{QEMU terminal capture: mystat output, link counter increment, and unlinking.}
+\includegraphics[width=0.92\textwidth]{assets/fig2_mystat_links.jpg}
+\caption{Reconstructed xv6 terminal illustration, not an original capture: mystat output, link counter increment, and unlinking.}
 \label{fig:comb_l6_mystat}
 \end{figure}
 
@@ -340,29 +344,31 @@ xv6 inodes omit permissions, UIDs, timestamps, and symbolic links.
 \chapter{Limits and Disk Architecture}
 
 \section{Filename Truncation}
-Because \texttt{DIRSIZ = 14}, creating \texttt{averyveryverylongname} results in truncation to \texttt{averyveryveryl} (14 characters).
+The directory format stores at most \texttt{DIRSIZ = 14} name bytes. The example name \texttt{averyveryvery\allowbreak{}longname} is therefore stored as \texttt{averyveryveryl}, its first 14 characters.
 
 \section{Maximum File Capacity}
 \begin{itemize}
-\item Block size: $\text{BSIZE} = 1024\text{ bytes}$.
-\item Direct blocks: $\text{NDIRECT} = 12$ blocks ($12\text{ KiB}$).
-\item Indirect blocks: $\text{NINDIRECT} = 1024 / 4 = 256$ blocks ($256\text{ KiB}$).
-\item Total blocks: $12 + 256 = 268$ blocks ($274,432\text{ bytes} \approx 268\text{ KiB}$).
+\item Block size: $\text{BSIZE} = 1024\text{ bytes}$;
+\item Direct blocks: $\text{NDIRECT} = 12$ blocks ($12\text{ KiB}$);
+\item Indirect blocks: $\text{NINDIRECT} = 1024 / 4 = 256$ blocks ($256\text{ KiB}$);
+\item Total blocks: $12 + 256 = 268$ blocks ($274,432\text{ bytes} \approx 268\text{ KiB}$);
 \end{itemize}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig3_limits_truncation.jpg}
-\caption{QEMU terminal capture: measuring constants, disk layout, and 14-byte truncation.}
+\includegraphics[width=0.92\textwidth]{assets/fig3_limits_truncation.jpg}
+\caption{Reconstructed xv6 terminal illustration, not an original capture: measuring constants, disk layout, and 14-byte truncation.}
 \label{fig:comb_l6_limits}
 \end{figure}
 
 \section{Disk Layout}
 \texttt{mkfs} reports:
 \begin{verbatim}
-nmeta 47 (boot, super, log blocks 31, inode blocks 13, bitmap blocks 1) blocks 1953 total 2000
+nmeta 47 (boot, super, log blocks 31,
+  inode blocks 13, bitmap blocks 1)
+blocks 1953 total 2000
 \end{verbatim}
-Total disk size is 2000 blocks. 47 blocks are reserved for metadata (boot, super, 30 log blocks, 13 inode blocks, 1 bitmap block). 1953 blocks are allocated for data.
+Total disk size is 2000 blocks. 47 blocks are reserved for metadata (one boot block, one superblock, 31 log blocks, 13 inode blocks and one bitmap block). The remaining 1953 blocks form the data region; this does not mean they all contain allocated file data.
 
 \chapter{Recursive Search: user/find.c and Inode Verification}
 
@@ -436,14 +442,17 @@ cat: file, inode 3, links 2, size 35160 bytes
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig4_find_and_stretch.jpg}
-\caption{QEMU terminal capture: find execution and -n stretch proving inode identity.}
+\includegraphics[width=0.92\textwidth]{assets/fig4_find_and_stretch.jpg}
+\caption{Reconstructed xv6 terminal illustration, not an original capture: find execution and -n stretch proving inode identity.}
 \label{fig:comb_l6_find}
 \end{figure}
 
-The \texttt{-n} stretch flag proves that \texttt{./r2} and \texttt{cat} share inode 3 and link count 2, confirming they are identical files on disk. The files \texttt{a/b/r2} (inode 26) and \texttt{a/r2} (inode 27) are distinct newly created files.
+The saved \texttt{-n} example illustrates that \texttt{./r2} and \texttt{cat} share inode 3 and link count 2, confirming they are identical files on disk. The files \texttt{a/b/r2} (inode 26) and \texttt{a/r2} (inode 27) are distinct newly created files.
 
 \utmconclusions
 This combined investigation demonstrates how filesystem abstractions are realized in production and educational operating systems. In both Linux and xv6, directory tables decouple human-readable names from inode metadata. Hard links manipulate link counters without duplicating disk blocks, and physical block deallocation occurs only when all links and open process descriptors are released.
 
+\begin{thebibliography}{9}
+\bibitem{xv6} MIT PDOS. \textit{xv6-riscv source code}. Included course snapshot in \texttt{lab2/}; \texttt{kernel/fs.c}, \texttt{kernel/fs.h}, and \texttt{kernel/sysfile.c}. Source inspected 23 October 2026. \url{https://github.com/mit-pdos/xv6-riscv}.
+\end{thebibliography}
 \end{document}

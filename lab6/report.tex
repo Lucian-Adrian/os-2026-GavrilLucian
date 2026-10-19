@@ -1,4 +1,4 @@
-\documentclass{utmreport}
+\documentclass{assets/utmreport}
 
 \usepackage{booktabs,amssymb,float,graphicx,listings}
 
@@ -6,7 +6,7 @@
 
 \selectlanguage{english}
 
-\utmlogo{utm-logo.jpeg}
+\utmlogo{assets/utm-logo.jpeg}
 
 \institution{Technical University of Moldova}
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
@@ -25,8 +25,8 @@
 \clearpage
 
 \begin{utmabstract}[Abstract]
-This laboratory report investigates the storage architecture of the MIT xv6 operating system running on an emulated RISC-V architecture via QEMU 8.2.2. The report presents the complete lifecycle of filesystem objects across kernel metadata structures and user-space utilities. Two custom user utilities were developed and validated in C: \texttt{user/mystat.c}, an inode inspection program decoding file types, inode numbers, hard link counters, and byte sizes; and \texttt{user/find.c}, a recursive search program traversing directory trees within xv6's 16-file-descriptor process limit. The optional stretch requirement was implemented, equipping \texttt{find} with a \texttt{-n} flag to display inode identifiers alongside resolved paths. In addition, the report analyzes directory entries, the on-disk \texttt{struct dinode}, the line-by-line block freeing sequence in \texttt{sys\_unlink()} and \texttt{iput()}, and disk limits derived from \texttt{kernel/fs.h}.
-\utmkeywords{operating systems, xv6, riscv, filesystem architecture, inodes, hard links, directory traversal, recursive find, storage limits}
+This report analyzes the MIT xv6 filesystem source and describes a historical QEMU 8.2.2 run with two user utilities, mystat and find. It traces directory entries, inodes, hard links, unlinking and block reclamation, and derives storage limits from kernel/fs.h. The terminal-style figures are reconstructed illustrations, not original QEMU captures; run outputs in the report remain historical entries, not independent execution evidence.
+\utmkeywords{operating systems, xv6, riscv, filesystem, inodes, hard links, directory traversal}
 \end{utmabstract}
 
 \utmintroduction
@@ -34,11 +34,11 @@ The xv6 operating system features a layered filesystem architecture modeled afte
 
 Laboratory 6 explores this filesystem from both internal and external perspectives:
 \begin{utmenumerate}
-\item \textbf{Directory Tables and Type Identification}: Interpreting directory record formatting, file type enumeration in \texttt{kernel/stat.h}, and root directory self-reference mechanics.
-\item \textbf{Inode Inspection and Link Semantics}: Developing \texttt{user/mystat.c} to inspect object metadata and observing hard link creation and unlinking.
-\item \textbf{Code Analysis of Deallocation}: Tracing the decoupling between directory record unlinking in \texttt{sys\_unlink()} and physical block deallocation in \texttt{iput()} and \texttt{itrunc()}.
-\item \textbf{Structural Capacity and Disk Accounting}: Calculating theoretical file capacity from direct and indirect block pointers in \texttt{kernel/fs.h}, and evaluating disk layout geometry from \texttt{mkfs}.
-\item \textbf{Recursive Search and Inode Identification}: Implementing \texttt{user/find.c} with cyclic guard logic and safe descriptor closure, incorporating the \texttt{-n} stretch flag to verify inode identity between hard-linked files.
+\item \textbf{Directory Tables and Type Identification}: Interpreting directory record formatting, file type enumeration in \texttt{kernel/stat.h}, and root directory self-reference mechanics;
+\item \textbf{Inode Inspection and Link Semantics}: Developing \texttt{user/mystat.c} to inspect object metadata and observing hard link creation and unlinking;
+\item \textbf{Code Analysis of Deallocation}: Tracing the decoupling between directory record unlinking in \texttt{sys\_unlink()} and physical block deallocation in \texttt{iput()} and \texttt{itrunc()};
+\item \textbf{Structural Capacity and Disk Accounting}: Calculating theoretical file capacity from direct and indirect block pointers in \texttt{kernel/fs.h}, and evaluating disk layout geometry from \texttt{mkfs};
+\item \textbf{Recursive Search and Inode Identification}: Implementing \texttt{user/find.c} with cyclic guard logic and safe descriptor closure, incorporating the \texttt{-n} stretch flag to verify inode identity between hard-linked files;
 \end{utmenumerate}
 
 \chapter{Directory Representation and File Types}
@@ -63,8 +63,8 @@ console        3 24 0
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig1_xv6_ls.jpg}
-\caption{QEMU terminal capture: directory listing and type decoding in xv6.}
+\includegraphics[width=0.92\textwidth]{assets/fig1_xv6_ls.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): directory listing and type decoding in xv6.}
 \label{fig:l6_ls}
 \end{figure}
 
@@ -91,7 +91,16 @@ The size of directory \texttt{a} is 32 bytes, consisting of exactly two 16-byte 
 \chapter{The mystat Utility and Hard Link Lifecycle}
 
 \section{Implementation of user/mystat.c}
-The \texttt{mystat} utility invokes \texttt{stat()} to print detailed object metadata:
+The \texttt{mystat} utility invokes \texttt{stat()} to print detailed object metadata. Figure \ref{fig:l6_links_concept} sketches the name-to-inode relationship used in this trace; it omits the open-file-table layer.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{assets/concept-filesystem-links.png}
+\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted. Generated illustration, not execution evidence.}
+\label{fig:l6_links_concept}
+\end{figure}
+
+
 \begin{verbatim}
 #include "kernel/types.h"
 #include "kernel/stat.h"
@@ -142,8 +151,8 @@ $ cat r2 | wc
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig2_mystat_links.jpg}
-\caption{QEMU terminal capture: mystat output, link counter increment, and unlinking.}
+\includegraphics[width=0.92\textwidth]{assets/fig2_mystat_links.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): mystat output, link counter increment, and unlinking.}
 \label{fig:l6_mystat_links}
 \end{figure}
 
@@ -201,8 +210,8 @@ averyveryveryl 1 26 32
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig3_limits_truncation.jpg}
-\caption{QEMU terminal capture: measuring constants, disk layout, and 14-byte truncation.}
+\includegraphics[width=0.92\textwidth]{assets/fig3_limits_truncation.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): measuring constants, disk layout, and 14-byte truncation.}
 \label{fig:l6_limits}
 \end{figure}
 
@@ -210,11 +219,11 @@ Because \texttt{DIRSIZ = 14}, names are truncated to 14 characters within the di
 
 \section{Maximum File Capacity Calculation}
 \begin{itemize}
-\item Block size: $\text{BSIZE} = 1024\text{ bytes}$.
-\item Direct blocks: $\text{NDIRECT} = 12$ blocks ($12 \times 1024 = 12,288\text{ bytes}$).
-\item Indirect blocks: $\text{NINDIRECT} = \frac{\text{BSIZE}}{\text{sizeof}(\text{uint})} = \frac{1024}{4} = 256$ block pointers ($256 \times 1024 = 262,144\text{ bytes}$).
-\item Total blocks: $12 + 256 = 268$ blocks.
-\item Maximum file size: $268 \times 1024\text{ bytes} = 274,432\text{ bytes} \approx 268\text{ KiB}$.
+\item Block size: $\text{BSIZE} = 1024\text{ bytes}$;
+\item Direct blocks: $\text{NDIRECT} = 12$ blocks ($12 \times 1024 = 12,288\text{ bytes}$);
+\item Indirect blocks: $\text{NINDIRECT} = \frac{\text{BSIZE}}{\text{sizeof}(\text{uint})} = \frac{1024}{4} = 256$ block pointers ($256 \times 1024 = 262,144\text{ bytes}$);
+\item Total blocks: $12 + 256 = 268$ blocks;
+\item Maximum file size: $268 \times 1024\text{ bytes} = 274,432\text{ bytes} \approx 268\text{ KiB}$;
 \end{itemize}
 
 \section{Disk Layout from mkfs}
@@ -296,14 +305,48 @@ cat: file, inode 3, links 2, size 35160 bytes
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig4_find_and_stretch.jpg}
-\caption{QEMU terminal capture: find execution and -n stretch proving inode identity.}
+\includegraphics[width=0.92\textwidth]{assets/fig4_find_and_stretch.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): find output and -n inode comparison.}
 \label{fig:l6_find_stretch}
 \end{figure}
 
-The stretch output with \texttt{-n} proves that \texttt{./r2} (inode 3) is the exact same file as \texttt{cat} (inode 3, link count 2). In contrast, \texttt{a/b/r2} (inode 26) and \texttt{a/r2} (inode 27) are newly created distinct files.
+The saved stretch transcript reports that \texttt{./r2} (inode 3) and \texttt{cat} (inode 3, link count 2) share an inode. It also reports distinct inode numbers for \texttt{a/b/r2} (26) and \texttt{a/r2} (27); those values are specific to the recorded image.
 
 \utmconclusions
-Implementing \texttt{mystat} and \texttt{find} clarified the internal mechanisms of xv6. Directory tables represent lightweight name-to-inode mappings, link counters manage inode preservation, and block freeing is cleanly separated from unlinking.
+Source analysis shows how directory names map to inodes, how link counts affect inode lifetime, and how xv6 separates unlinking from block reclamation. The saved transcripts illustrate these mechanisms in one image; the available terminal-style figures are reconstructed illustrations, not original captures.
 
+\appendix
+\chapter{Fresh xv6 Execution, 23 October 2026}
+\section{Environment and scope}
+The captured session is preserved in \texttt{execution-2026-10-23.txt}. It ran in Ubuntu 24.04 WSL2 on the WSL2 Linux 6.18.33.2 kernel, using host GCC 13.3.0, GNU make 4.3, Perl 5.38.2, RISC-V GCC 13.2.0, and QEMU 8.2.2. The Lab 6 helper built a disposable overlay under \texttt{/tmp}. The linker emitted RWX-segment warnings for the kernel and \texttt{user/\_forktest}; QEMU/make exited with status 0, then the overlay was removed.
+
+\section{Captured commands and output}
+\begingroup
+\footnotesize
+\begin{verbatim}
+$ mystat README . console
+README: file, inode 2, links 1, size 2473 bytes
+.: directory, inode 1, links 1, size 1024 bytes
+console: device, inode 26, links 1, size 0 bytes
+$ ln README r2
+$ mystat README r2
+README: file, inode 2, links 2, size 2473 bytes
+r2: file, inode 2, links 2, size 2473 bytes
+$ rm README
+$ mystat r2
+r2: file, inode 2, links 1, size 2473 bytes
+$ mkdir a
+$ mkdir a/b
+$ echo x > a/b/r2
+$ echo y > a/r2
+$ find a r2
+a/b/r2
+a/r2
+$ find a r2 -n
+a/b/r2 28
+a/r2 29
+\end{verbatim}
+\endgroup
+
+This image shows README and r2 sharing inode 2, with the link count falling from two to one after unlink. find recursed through a/b and reported the two r2 inodes as 28 and 29. These numbers identify this image only; the run did not repeat the cat hard link or filesystem-limit observations.
 \end{document}

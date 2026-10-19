@@ -1,0 +1,53 @@
++ printf 'Fresh bounded Linux filesystem demonstration\n'
+Fresh bounded Linux filesystem demonstration
++ date --iso-8601=seconds
+2026-10-23T04:01:47+03:00
++ grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+VERSION_ID="24.04"
++ uname -a
+Linux devdesk 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
++ bash --version
++ head -n 1
+GNU bash, version 5.2.21(1)-release (x86_64-pc-linux-gnu)
++ stat --version
++ head -n 1
+stat (GNU coreutils) 9.4
++ truncate --version
++ head -n 1
+truncate (GNU coreutils) 9.4
++ python3 --version
+Python 3.12.3
+++ mktemp -d /tmp/os-lab5-filesystem.XXXXXX
++ tmp=/tmp/os-lab5-filesystem.nsVNbR
++ trap 'rm -rf -- "$tmp"' EXIT
++ cd /tmp/os-lab5-filesystem.nsVNbR
++ df -T .
+Filesystem     Type  1K-blocks     Used Available Use% Mounted on
+/dev/sdc       ext4 1055762868 14380092 987679304   2% /
++ printf 'link data\n'
++ ln target.txt hardlink.txt
++ stat -c 'name=%n type=%F inode=%i links=%h size=%s bytes' target.txt hardlink.txt
+name=target.txt type=regular file inode=105838 links=2 size=10 bytes
+name=hardlink.txt type=regular file inode=105838 links=2 size=10 bytes
++ ln -s target.txt symlink.txt
++ readlink symlink.txt
+target.txt
++ stat -c 'link=%n type=%F inode=%i' symlink.txt
+link=symlink.txt type=symbolic link inode=105839
++ stat -L -c 'referent=%n type=%F inode=%i links=%h' symlink.txt
+referent=symlink.txt type=regular file inode=105838 links=2
++ rm target.txt
++ stat -c 'hardlink after original name removed: %n inode=%i links=%h size=%s bytes' hardlink.txt
+hardlink after original name removed: hardlink.txt inode=105838 links=1 size=10 bytes
++ printf 'still readable after unlink\n'
++ python3 -c 'import os,sys; p=sys.argv[1]; fd=os.open(p,os.O_RDONLY); os.unlink(p); st=os.fstat(fd); data=os.read(fd,128); print("name_exists=%s fd_links=%d bytes_read=%d data=%r" % (os.path.exists(p),st.st_nlink,len(data),data.decode().strip())); os.close(fd)' /tmp/os-lab5-filesystem.nsVNbR/open-fd.txt
+name_exists=False fd_links=0 bytes_read=28 data='still readable after unlink'
++ truncate -s 1048576 sparse.bin
++ stat -c 'sparse=%n logical_bytes=%s allocated_512_byte_blocks=%b block_size=%B' sparse.bin
+sparse=sparse.bin logical_bytes=1048576 allocated_512_byte_blocks=0 block_size=512
++ du -B1 sparse.bin
+0	sparse.bin
++ wc -c sparse.bin
+1048576 sparse.bin
++ rm -rf -- /tmp/os-lab5-filesystem.nsVNbR

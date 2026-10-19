@@ -1,6 +1,8 @@
-# Supplementary Combined Report for Labs 5 and 6
+# Supplementary combined report for Labs 5 and 6
 
 Operating Systems (FCIM / FAF, UTM, 2026-2027).
+
+Recovered from the owner's repository at commit `183ff1340c42620ccb86b2f0d3493e0d667d5a78`. Use the separate [Lab 5](../lab5/teaching-note.md) and [Lab 6](../lab6/teaching-note.md) lessons for study. The original handouts are unavailable; the saved reports and source supply the task descriptions.
 
 **Track A:** The File System with Your Own Hands (Linux)  
 **Track B:** Inside the xv6 File System (xv6 RISC-V)  
@@ -27,8 +29,14 @@ Individual standalone lab folders, complete with their source code, working make
 
 ## Build the Combined Report PDF
 
+The class, logo and images are together in [assets](assets/). Build from this folder so the relative paths resolve.
+
 To recompile `labs-05-06.pdf` using Tectonic:
 
 ```powershell
 tectonic labs-05-06.tex
 ```
+
+## Illustration provenance
+
+The older terminal panels in this supplementary report were reconstructed from text by a drawing script. They explain the saved observations and are not original terminal screenshots. Use the separate reports for the current source and evidence distinctions.

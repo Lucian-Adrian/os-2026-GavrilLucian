@@ -1,20 +1,20 @@
 # Operating Systems Lab 6: Inside the xv6 File System
 
-**Track:** B (Build Your Own Small OS, xv6)  
-**Author:** Lucian-Adrian Gavril (FAF-241)  
-**Environment:** xv6 RISC-V on QEMU 8.2.2 (emulated 3-hart virt machine)  
-**Toolchain:** `riscv64-linux-gnu-gcc` 13.3.0, GNU `make` 4.3  
-**Date:** 2026-10-12  
+**Track:** B (Build Your Own Small OS, xv6)
+**Author:** Lucian-Adrian Gavril (FAF-241)
+**Environment:** xv6 RISC-V on QEMU 8.2.2 (emulated 3-hart virt machine)
+**Toolchain:** `riscv64-linux-gnu-gcc` 13.3.0, GNU `make` 4.3
+**Date:** 2026-10-12
 
 ---
 
 ## Executive Summary
 
-This laboratory analyzes the MIT xv6 filesystem implementation. The codebase provides a self-contained, crash-resilient filesystem complete with an on-disk inode layer, fixed-size directory entries, hard links, and a write-ahead journal across approximately 800 lines of C. Two utilities were authored and tested inside the QEMU environment:
+This saved report describes the MIT xv6 filesystem and records outputs for two user utilities in a QEMU run. The terminal-style figures are reconstructed illustrations, not original QEMU captures; transcript values and measurements remain historical report entries rather than independent execution evidence.
 1. `user/mystat.c`: Decodes filesystem inodes, object types, link counts, and byte sizes.
 2. `user/find.c`: Performs recursive filesystem traversal using bounded file descriptors, complete with the optional `-n` stretch flag to emit inode identifiers alongside discovered paths.
 
-All measurements, code snippets, QEMU console logs, and structural limits from `kernel/fs.h` are detailed below.
+The saved report includes code analysis, reported measurements and historical console transcripts. Its terminal-style figures are reconstructed illustrations and do not independently verify those transcripts.
 
 ---
 
@@ -56,7 +56,7 @@ $ ls a
 ..             1 1 1024
 ```
 
-![Figure 1: xv6 Directory Listing and Types](figures/fig1_xv6_ls.jpg)
+![Reconstructed terminal illustration, not an original capture; Figure 1: xv6 Directory Listing and Types](assets/fig1_xv6_ls.jpg)
 
 ### Observation Analysis
 
@@ -136,7 +136,11 @@ $ cat r2 | wc
 48 334 2425
 ```
 
-![Figure 2: mystat and Hard Links](figures/fig2_mystat_links.jpg)
+![Conceptual diagram of names, inodes, and links](assets/concept-filesystem-links.png)
+
+The conceptual diagram omits the open-file-table layer.
+
+![Reconstructed terminal illustration, not an original capture; Figure 2: mystat and Hard Links](assets/fig2_mystat_links.jpg)
 
 ### Inode Lifecycle and Deallocation
 
@@ -190,7 +194,7 @@ $ ls
 averyveryveryl 1 26 32
 ```
 
-![Figure 3: Constants and Truncation](figures/fig3_limits_truncation.jpg)
+![Reconstructed terminal illustration, not an original capture; Figure 3: Constants and Truncation](assets/fig3_limits_truncation.jpg)
 
 ### Maximum File Size Derivation
 
@@ -320,7 +324,7 @@ main(int argc, char *argv[])
 }
 ```
 
-### Verification on a Fresh Disk Image
+### Historical Verification on a Fresh Disk Image, 12 October 2026
 
 ```text
 $ mkdir a
@@ -346,7 +350,7 @@ $ mystat cat
 cat: file, inode 3, links 2, size 35160 bytes
 ```
 
-![Figure 4: find and -n Inode Verification](figures/fig4_find_and_stretch.jpg)
+![Reconstructed terminal illustration, not an original capture; Figure 4: find and -n inode comparison](assets/fig4_find_and_stretch.jpg)
 
 ### Stretch Finding: Inode Identity
 
@@ -391,4 +395,34 @@ UPROGS=\
 
 ## Conclusion
 
-By implementing `mystat` and `find`, this laboratory explored xv6's filesystem architecture. The directory structure as an array of 16-byte `struct dirent` records explains name truncation at 14 characters (`DIRSIZ = 14`). Inode link counts separate directory names from physical storage blocks, deferring block reclamation to `iput()` when both `nlink == 0` and `ref == 1`. The recursive `find` tool proves that hierarchical tree resolution requires disciplined descriptor closure to operate within xv6's process limits.
+Source analysis explains xv6's 16-byte directory records, 14-character name limit, and the separate roles of link counts and cached references during reclamation. The saved find transcript illustrates recursive lookup with descriptor closure in one filesystem image; it does not establish behavior for every tree depth. Terminal-style figures are reconstructions, not original captures.
+
+## Appendix: Fresh xv6 execution, 23 October 2026
+
+The raw [execution record](execution-2026-10-23.txt) preserves the build output, tool versions, commands echoed by xv6, and captured results. The run used Ubuntu 24.04 WSL2 with host GCC 13.3.0, GNU make 4.3, Perl 5.38.2, RISC-V GCC 13.2.0, and QEMU 8.2.2. The Lab 6 helper created a disposable overlay from Lab 2 in /tmp. The linker warned that the kernel and user/_forktest have RWX load segments; the build completed and QEMU/make exited with status 0.
+
+~~~text
+$ mystat README . console
+README: file, inode 2, links 1, size 2473 bytes
+.: directory, inode 1, links 1, size 1024 bytes
+console: device, inode 26, links 1, size 0 bytes
+$ ln README r2
+$ mystat README r2
+README: file, inode 2, links 2, size 2473 bytes
+r2: file, inode 2, links 2, size 2473 bytes
+$ rm README
+$ mystat r2
+r2: file, inode 2, links 1, size 2473 bytes
+$ mkdir a
+$ mkdir a/b
+$ echo x > a/b/r2
+$ echo y > a/r2
+$ find a r2
+a/b/r2
+a/r2
+$ find a r2 -n
+a/b/r2 28
+a/r2 29
+~~~
+
+In this disposable filesystem image, the hard link preserves inode 2 after README is unlinked, while the link count falls from two to one. The recursive search finds both nested r2 paths; -n reports their distinct inodes, 28 and 29. These inode numbers belong to this fresh image and do not revise the older 12 October transcript. The bounded run did not repeat the report's cat hard link or filesystem-limit observations.

@@ -1,0 +1,79 @@
+Fresh xv6 filesystem demonstration
+WSL timestamp: 2026-10-23T04:02:51+03:00
+$ date --iso-8601=seconds
+2026-10-23T04:02:51+03:00
+$ uname -a
+Linux devdesk 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+$ gcc --version
+gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+$ make --version
+GNU Make 4.3
+Built for x86_64-pc-linux-gnu
+Copyright (C) 1988-2020 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+$ python3 --version
+Python 3.12.3
+$ perl -e 'print "$^V\n"'
+v5.38.2
+$ riscv64-unknown-elf-gcc --version
+riscv64-unknown-elf-gcc (13.2.0-11ubuntu1+12) 13.2.0
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+$ qemu-system-riscv64 --version
+QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
+$ bash ./lab6/prepare-overlay.sh /mnt/d/edu/faf/sem5/os
+/tmp/faf-os-lab6.mSqU8o
+$ make clean
+rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
+*/*.o */*.d */*.asm */*.sym \
+kernel/kernel fs.img \
+mkfs/mkfs .gdbinit \
+        user/usys.S \
+user/_cat user/_echo user/_forktest user/_grep user/_init user/_kill user/_ln user/_ls user/_mkdir user/_rm user/_sh user/_sleep user/_args user/_stressfs user/_usertests user/_grind user/_wc user/_zombie user/_logstress user/_mystat user/_find user/_forphan user/_dorphan 
+$ make -s qemu
+riscv64-unknown-elf-ld: warning: kernel/kernel has a LOAD segment with RWX permissions
+riscv64-unknown-elf-ld: warning: user/_forktest has a LOAD segment with RWX permissions
+nmeta 47 (boot, super, log blocks 31, inode blocks 13, bitmap blocks 1) blocks 1953 total 2000
+balloc: first 1064 blocks have been allocated
+balloc: write bitmap block at sector 46
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ mystat README . console
+README: file, inode 2, links 1, size 2473 bytes
+.: directory, inode 1, links 1, size 1024 bytes
+console: device, inode 26, links 1, size 0 bytes
+$ ln README r2
+$ mystat README r2
+README: file, inode 2, links 2, size 2473 bytes
+r2: file, inode 2, links 2, size 2473 bytes
+$ rm README
+$ mystat r2
+r2: file, inode 2, links 1, size 2473 bytes
+$ rm r2
+$ mkdir a
+$ mkdir a/b
+$ echo x > a/b/r2
+$ echo y > a/r2
+$ find a r2
+a/b/r2
+a/r2
+$ find a r2 -n
+a/b/r2 28
+a/r2 29
+$ Leaving xv6 through QEMU Ctrl-A, x.
+QEMU and make exit status: 0
+QEMU exited cleanly.
+Disposable xv6 overlay removed: /tmp/faf-os-lab6.mSqU8o

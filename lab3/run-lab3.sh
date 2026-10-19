@@ -31,5 +31,9 @@ bash report.sh nonexistent.log
 ERR_CODE=$?
 set -e
 echo "Error exit code: $ERR_CODE (Expected: 1)"
+if [ "$ERR_CODE" -ne 1 ]; then
+    echo "ERROR: missing-file case returned $ERR_CODE, expected 1" >&2
+    exit 1
+fi
 
 echo "=== All Laboratory 3 checks passed successfully ==="

@@ -1,4 +1,4 @@
-\documentclass{utmreport}
+\documentclass{assets/utmreport}
 
 \usepackage{booktabs,amssymb,float,graphicx,listings}
 
@@ -6,7 +6,7 @@
 
 \selectlanguage{english}
 
-\utmlogo{utm-logo.jpeg}
+\utmlogo{assets/utm-logo.jpeg}
 
 \institution{Technical University of Moldova}
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
@@ -25,8 +25,8 @@
 \clearpage
 
 \begin{utmabstract}[Abstract]
-This laboratory report investigates the Linux Virtual Filesystem (VFS) architecture through direct experimentation on an Ubuntu 24.04 LTS host running Linux kernel 6.6.87.2 on x86\_64. All tasks were performed under an unprivileged user (\texttt{ubuntu}, UID 1000) to ensure Discretionary Access Control (DAC) evaluations were genuinely tested. The study covers namespace organization, inode metadata separation from directory entries, hard link versus symbolic link mechanics, physical disk allocation of sparse files, directory traversal versus enumeration permissions, setuid privilege elevation, and the pseudo-filesystem interface under \texttt{/proc}. In addition, all four optional stretch exercises are examined: binary magic number identification, setuid binary discovery, active file descriptor unlinking, and loopback ext4 filesystem creation with inode quota verification.
-\utmkeywords{operating systems, linux, virtual filesystem, inodes, hard links, permissions, setuid, umask, ext4, procfs}
+This report records Linux VFS investigations described as run on Ubuntu 24.04 LTS (Linux 6.6.87.2, x86\_64) by an unprivileged UID 1000 account. Topics include namespace organization, inode metadata and directory entries, hard and symbolic links, sparse-file allocation, directory permissions, setuid, procfs, and four stretch exercises. The terminal-style figures are reconstructed illustrations, not original captures; the recorded values remain historical report observations and are not independently verified by those figures.
+\utmkeywords{operating systems, linux, virtual filesystem, inodes, hard links, permissions, procfs}
 \end{utmabstract}
 
 \utmintroduction
@@ -34,11 +34,11 @@ Filesystems translate byte-oriented storage devices into hierarchical, human-nav
 
 Laboratory 5 explores this architecture across four core modules and four stretch problems:
 \begin{utmenumerate}
-\item \textbf{Filesystem Tree and Types}: Distinguishing regular files, directories, character devices, block devices, and symbolic links, alongside UsrMerge namespace organization.
-\item \textbf{Inodes and Links}: Comparing directory entries with underlying inodes, hard links, dangling symbolic links, directory link count mechanics, and sparse file allocation.
-\item \textbf{Permission Semantics}: Evaluating octal modes, the bitwise \texttt{umask} calculation, directory read versus execute semantics, setuid privilege elevation, and the sticky bit.
-\item \textbf{Disks and Kernel Pseudo-Files}: Mapping block devices via \texttt{lsblk} and \texttt{df}, extracting hardware topology from \texttt{/proc/cpuinfo} and \texttt{/proc/meminfo}, and analyzing dynamic process resolution through \texttt{/proc/self}.
-\item \textbf{Advanced System Inspections}: Header magic byte parsing, setuid auditing, unlinking open file descriptors, and measuring ext4 loopback inode table sizing.
+\item \textbf{Filesystem Tree and Types}: Distinguishing regular files, directories, character devices, block devices, and symbolic links, alongside UsrMerge namespace organization;
+\item \textbf{Inodes and Links}: Comparing directory entries with underlying inodes, hard links, dangling symbolic links, directory link count mechanics, and sparse file allocation;
+\item \textbf{Permission Semantics}: Evaluating octal modes, the bitwise \texttt{umask} calculation, directory read versus execute semantics, setuid privilege elevation, and the sticky bit;
+\item \textbf{Disks and Kernel Pseudo-Files}: Mapping block devices via \texttt{lsblk} and \texttt{df}, extracting hardware topology from \texttt{/proc/cpuinfo} and \texttt{/proc/meminfo}, and analyzing dynamic process resolution through \texttt{/proc/self};
+\item \textbf{Advanced System Inspections}: Header magic byte parsing, setuid auditing, unlinking open file descriptors, and measuring ext4 loopback inode table sizing;
 \end{utmenumerate}
 
 \chapter{The Tree and File Types}
@@ -57,14 +57,14 @@ drwxrwxrwt  10 root root 4096 Oct 12 15:38 /tmp
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig1_tree_and_types.jpg}
-\caption{Terminal session: inspecting system root, device nodes, and file types.}
+\includegraphics[width=0.92\textwidth]{assets/fig1_tree_and_types.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): inspecting system root, device nodes, and file types.}
 \label{fig:l5_tree_types}
 \end{figure}
 
 \begin{table}[H]
 \centering
-\caption{Observed file types in system root}
+\caption{File types reported in the saved 12 October run}
 \begin{tabular}{lcll}
 \toprule
 \textbf{Path} & \textbf{Prefix} & \textbf{Filesystem Type} & \textbf{Semantic Role} \\
@@ -84,8 +84,8 @@ On this system, \texttt{/bin} is a symbolic link pointing to \texttt{usr/bin}. M
 \section{Device Files in /dev}
 Device files in \texttt{/dev} do not occupy disk data blocks; their inodes store major and minor device identifiers:
 \begin{itemize}
-\item \textbf{Character Device}: \texttt{/dev/null} (major 1, minor 3) streams bytes directly without intermediate caching.
-\item \textbf{Block Device}: \texttt{/dev/sda} (major 8, minor 0) and \texttt{/dev/sdd} (major 8, minor 48) support random block-level transfers backed by the page cache.
+\item \textbf{Character Device}: \texttt{/dev/null} (major 1, minor 3) streams bytes directly without intermediate caching;
+\item \textbf{Block Device}: \texttt{/dev/sda} (major 8, minor 0) and \texttt{/dev/sdd} (major 8, minor 48) support random block-level transfers backed by the page cache;
 \end{itemize}
 
 \section{Filesystem Footprint: /var/log vs /usr}
@@ -100,7 +100,14 @@ The \texttt{/usr} hierarchy occupies 7.4 GB, which is roughly 7.0 GB larger ($\a
 \chapter{Inodes, Links, and Space Allocation}
 
 \section{Inode Metadata and Hard Links}
-A file's human-readable name is not stored within its inode. It exists solely as an entry in a parent directory mapping a string to an inode number.
+A file's human-readable name is not stored within its inode. It exists solely as an entry in a parent directory mapping a string to an inode number. Figure \ref{fig:l5_links_concept} summarizes the relationship; its open-file-table layer is omitted.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{assets/concept-filesystem-links.png}
+\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted. Generated illustration, not execution evidence.}
+\label{fig:l5_links_concept}
+\end{figure}
 
 \begin{verbatim}
 $ echo hello > notes.txt
@@ -123,8 +130,8 @@ hello
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig2_inodes_and_links.jpg}
-\caption{Terminal session: inode inspection, hard links, dangling symlinks, and sparse files.}
+\includegraphics[width=0.92\textwidth]{assets/fig2_inodes_and_links.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): inode inspection, hard links, dangling symlinks, and sparse files.}
 \label{fig:l5_inodes_links}
 \end{figure}
 
@@ -171,10 +178,10 @@ A 2-byte file requires one full 4 KiB filesystem block. Conversely, \texttt{trun
 \section{Octal Modes and Evaluation Semantics}
 File permissions represent three 3-bit masks for User, Group, and Others:
 \begin{itemize}
-\item \texttt{600} (\texttt{rw-------}): Private SSH keys (\texttt{\~{}/.ssh/id\_rsa}).
-\item \texttt{644} (\texttt{rw-r--r--}): Web assets, documentation, \texttt{/etc/passwd}.
-\item \texttt{755} (\texttt{rwxr-xr-x}): Executables (\texttt{/bin/ls}) and public directories.
-\item \texttt{700} (\texttt{rwx------}): Private directories (\texttt{\~{}/.ssh}).
+\item \texttt{600} (\texttt{rw-------}): Private SSH keys (\texttt{\~{}/.ssh/id\_rsa});
+\item \texttt{644} (\texttt{rw-r--r--}): Web assets, documentation, \texttt{/etc/passwd};
+\item \texttt{755} (\texttt{rwxr-xr-x}): Executables (\texttt{/bin/ls}) and public directories;
+\item \texttt{700} (\texttt{rwx------}): Private directories (\texttt{\~{}/.ssh});
 \end{itemize}
 
 When setting \texttt{chmod 000 s.txt}, reading fails even for the file's owner:
@@ -186,8 +193,8 @@ The kernel checks whether \texttt{current\_euid == inode->i\_uid}. Since it matc
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig3_permissions.jpg}
-\caption{Terminal session: permission evaluation, umask verification, and directory traversal.}
+\includegraphics[width=0.92\textwidth]{assets/fig3_permissions.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): permission evaluation, umask verification, and directory traversal.}
 \label{fig:l5_permissions}
 \end{figure}
 
@@ -243,8 +250,8 @@ $ mount | grep " / "
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig4_disks_and_proc.jpg}
-\caption{Terminal session: disk topology, mount attributes, and procfs inspection.}
+\includegraphics[width=0.92\textwidth]{assets/fig4_disks_and_proc.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): disk topology, mount attributes, and procfs inspection.}
 \label{fig:l5_disks_proc}
 \end{figure}
 
@@ -274,8 +281,8 @@ The reported process name is \texttt{head}. In Linux, \texttt{/proc/self} is a d
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/fig5_stretch.jpg}
-\caption{Terminal session: magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
+\includegraphics[width=0.92\textwidth]{assets/fig5_stretch.jpg}
+\caption{Reconstructed terminal illustration (not an original capture): magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
 \label{fig:l5_stretch}
 \end{figure}
 
@@ -314,6 +321,24 @@ Filesystem     Inodes IUsed IFree IUse% Mounted on
 Formatting a 64 MiB disk image created exactly 16,384 inodes (one inode per 4 KiB block).
 
 \utmconclusions
-This laboratory verified core filesystem principles: directory names are decoupleable references to inodes; link counts govern inode lifecycle; file permissions separate directory enumeration from path traversal; and block allocation distinguishes logical length from physical storage.
+The saved command transcript and source analysis illustrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The terminal-style figures are reconstructed illustrations rather than original captures; the reported values remain historical and unverified.
 
+\appendix
+\chapter{Focused WSL Demonstration, 23 October 2026}
+\section{Environment and scope}
+The captured execution record is \texttt{execution-2026-10-23.txt}. It records one bounded Ubuntu 24.04.4 WSL2 user-space run on the WSL2 Linux 6.18.33.2 kernel. The tests ran in an ext4 temporary directory under \texttt{/tmp} using Bash 5.2.21, GNU coreutils 9.4, and Python 3.12.3. They covered hard links, symbolic-link metadata, reading through an open descriptor after unlink, and sparse allocation. No filesystem image was mounted, no special permission bit was changed, and the other historical report experiments were not repeated.
+
+\section{Selected captured output}
+\begin{verbatim}
+name=target.txt type=regular file inode=105838 links=2 size=10 bytes
+name=hardlink.txt type=regular file inode=105838 links=2 size=10 bytes
+link=symlink.txt type=symbolic link inode=105839
+referent=symlink.txt type=regular file inode=105838 links=2
+hardlink after original name removed: hardlink.txt inode=105838 links=1 size=10 bytes
+name_exists=False fd_links=0 bytes_read=28 data='still readable after unlink'
+sparse=sparse.bin logical_bytes=1048576 allocated_512_byte_blocks=0 block_size=512
+1048576 sparse.bin
+\end{verbatim}
+
+The two hard-link names initially refer to inode 105838. Removing \texttt{target.txt} leaves \texttt{hardlink.txt} with one link. The open descriptor remains readable after unlink even though its inode reports zero directory links. In this ext4 run, the sparse file has a logical size of 1,048,576 bytes and zero allocated 512-byte accounting blocks. The 512-byte unit is the allocation-count accounting unit, not the ext4 filesystem block size; du reported zero allocated bytes. These fresh results cover only the listed operations; the older terminal panels and other recorded measurements remain historical report material.
 \end{document}

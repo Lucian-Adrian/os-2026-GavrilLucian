@@ -1,0 +1,13 @@
+# Shell scripts must also run when a Windows checkout is opened in WSL.
+*.sh text eol=lf
+Makefile text eol=lf
+
+# PDF cross-reference offsets and image bytes must survive every checkout.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.docx binary
+
+# Captured output keeps its original bytes, including prompt spaces.
+lab*/execution*.txt -text -whitespace

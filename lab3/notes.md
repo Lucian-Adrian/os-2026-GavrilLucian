@@ -24,7 +24,7 @@
 ### Answers to Observe Questions (Part 1)
 1. **Which of `cd`, `ls`, `echo` are built-ins, and why MUST `cd` be one?**
    - `cd` and `echo` are shell built-ins (`ls` is an external binary).
-   - `cd` MUST be a built-in because the working directory is an attribute of the process environment. If `cd` were an external executable, the shell would `fork()` a child process to run it; the child would change its own working directory and immediately terminate, leaving the parent shell's working directory unchanged.
+   - `cd` MUST be a built-in because the kernel tracks the current working directory per process. If `cd` were an external executable, the shell would `fork()` a child process to run it; the child would change its own working directory and immediately terminate, leaving the parent shell's working directory unchanged.
 2. **How many directories are in your PATH, and in which one is `ls`?**
    - The 9 October Debian 13 check listed 4 PATH entries and resolved `ls` to `/usr/bin/ls`. The assigned course system may differ.
    - `ls` is located in `/usr/bin/ls` (or `/bin/ls` via symlink).
@@ -45,7 +45,7 @@
 | `echo file?.txt` | Match `file1.txt` and `file2.txt` | `file1.txt file2.txt` | `?` matches exactly one character. |
 | `echo [a-b]*` | Match files starting with `a` or `b` | `a.c b.c` | Character class `[a-b]` expands to matching directory entries. |
 | `echo *.xyz` | Literal string `*.xyz` | `*.xyz` | When no matching file exists, bash preserves the literal pattern unless `nullglob` is set. |
-| `ls alfa beta.txt` | Fails or searches two files | `ls: cannot access 'alfa': No such file or directory`<br>`ls: cannot access 'beta.txt': No such file or directory` | Shell splits unquoted words by IFS (space) into two distinct arguments `alfa` and `beta.txt`. |
+| `ls alfa beta.txt` | Fails or searches two files | `ls: cannot access 'alfa': No such file or directory`<br>`ls: cannot access 'beta.txt': No such file or directory` | The shell grammar treats the unquoted space as a word boundary, so `ls` receives two path arguments. `IFS` is used for splitting unquoted expansion results, not for parsing this literal command line. |
 | `ls "alfa beta.txt"` | Lists the file with space | `'alfa beta.txt'` | Double quotes prevent word splitting across whitespace. |
 | `echo '$HOME' "$HOME" \$HOME` | Literal, expanded, escaped | `$HOME /home/user $HOME` | Single quotes suppress expansion; double quotes expand variables; backslash escapes `$`. |
 | `echo {1..5} ; echo $((7 * 6))` | Numbers 1 to 5; arithmetic 42 | `1 2 3 4 5`<br>`42` | Brace expansion generates sequence; `$((...))` evaluates arithmetic. |
@@ -56,7 +56,7 @@
 1. **`echo` knows nothing about files, yet `echo *.c` printed file names. Who produced them?**
    - The shell expanded the glob pattern `*.c` against the filesystem before executing `echo`. `echo` merely receives the expanded strings as individual arguments `argv[1] = "a.c"` and `argv[2] = "b.c"`.
 2. **Why did `ls alfa beta.txt` fail? Give two different ways to fix it.**
-   - It failed because unquoted whitespace causes the shell to split the input into two arguments: `alfa` and `beta.txt`. Neither file exists individually.
+   - It failed because unquoted whitespace separates two command words: `alfa` and `beta.txt`. Neither file exists individually. Bash uses `IFS` when it splits the results of unquoted expansions; it does not use `IFS` to decide where these literal command words end.
    - Fix 1: Enclose in quotes: `ls "alfa beta.txt"` (or `ls 'alfa beta.txt'`).
    - Fix 2: Escape the whitespace with a backslash: `ls alfa\ beta.txt`.
 3. **What is the difference between single and double quotes?**
