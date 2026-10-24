@@ -146,7 +146,7 @@ UPROGS=\
 	$U/_pingpong\
 	$U/_primes\
 	$U/_forphan\
-	$U/_dorphan\
+	$U/_dorphan
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
