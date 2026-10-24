@@ -136,6 +136,7 @@ UPROGS=\
 	$U/_sh\
 	$U/_sleep\
 	$U/_args\
+	$U/_pingpong\
 	$U/_stressfs\
 	$U/_usertests\
 	$U/_grind\
