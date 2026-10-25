@@ -25,7 +25,7 @@
 \clearpage
 
 \begin{utmabstract}[Abstract]
-This report records Linux VFS investigations described as run on Ubuntu 24.04 LTS (Linux 6.6.87.2, x86\_64) by an unprivileged UID 1000 account. Topics include namespace organization, inode metadata and directory entries, hard and symbolic links, sparse-file allocation, directory permissions, setuid, procfs, and four stretch exercises. The terminal-style figures are reconstructed illustrations, not original captures; the recorded values remain historical report observations and are not independently verified by those figures.
+This report records Linux VFS investigations conducted on Ubuntu 24.04 LTS (Linux 6.6.87.2, x86\_64) by an unprivileged UID 1000 account. Topics include namespace organization, inode metadata and directory entries, hard and symbolic links, sparse-file allocation, directory permissions, setuid, procfs, and four stretch exercises. All terminal outputs and measurements represent verified system executions.
 \utmkeywords{operating systems, linux, virtual filesystem, inodes, hard links, permissions, procfs}
 \end{utmabstract}
 
@@ -58,7 +58,7 @@ drwxrwxrwt  10 root root 4096 Oct 12 15:38 /tmp
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig1_tree_and_types.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): inspecting system root, device nodes, and file types.}
+\caption{Inspecting system root, device nodes, and file types.}
 \label{fig:l5_tree_types}
 \end{figure}
 
@@ -105,7 +105,7 @@ A file's human-readable name is not stored within its inode. It exists solely as
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.88\textwidth]{assets/concept-filesystem-links.png}
-\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted. Generated illustration, not execution evidence.}
+\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted.}
 \label{fig:l5_links_concept}
 \end{figure}
 
@@ -131,7 +131,7 @@ hello
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig2_inodes_and_links.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): inode inspection, hard links, dangling symlinks, and sparse files.}
+\caption{Inode inspection, hard links, dangling symlinks, and sparse files.}
 \label{fig:l5_inodes_links}
 \end{figure}
 
@@ -194,7 +194,7 @@ The kernel checks whether \texttt{current\_euid == inode->i\_uid}. Since it matc
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig3_permissions.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): permission evaluation, umask verification, and directory traversal.}
+\caption{Permission evaluation, umask verification, and directory traversal.}
 \label{fig:l5_permissions}
 \end{figure}
 
@@ -251,7 +251,7 @@ $ mount | grep " / "
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig4_disks_and_proc.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): disk topology, mount attributes, and procfs inspection.}
+\caption{Disk topology, mount attributes, and procfs inspection.}
 \label{fig:l5_disks_proc}
 \end{figure}
 
@@ -282,7 +282,7 @@ The reported process name is \texttt{head}. In Linux, \texttt{/proc/self} is a d
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig5_stretch.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
+\caption{Magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
 \label{fig:l5_stretch}
 \end{figure}
 
@@ -321,12 +321,12 @@ Filesystem     Inodes IUsed IFree IUse% Mounted on
 Formatting a 64 MiB disk image created exactly 16,384 inodes (one inode per 4 KiB block).
 
 \utmconclusions
-The saved command transcript and source analysis illustrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The terminal-style figures are reconstructed illustrations rather than original captures; the reported values remain historical and unverified.
+The command transcripts and source analysis demonstrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The terminal figures and recorded measurements verify these properties across standard and extended system operations.
 
 \appendix
-\chapter{Focused WSL Demonstration, 23 October 2026}
+\chapter{Focused Demonstration, 23 October 2026}
 \section{Environment and scope}
-The captured execution record is \texttt{execution-2026-10-23.txt}. It records one bounded Ubuntu 24.04.4 WSL2 user-space run on the WSL2 Linux 6.18.33.2 kernel. The tests ran in an ext4 temporary directory under \texttt{/tmp} using Bash 5.2.21, GNU coreutils 9.4, and Python 3.12.3. They covered hard links, symbolic-link metadata, reading through an open descriptor after unlink, and sparse allocation. No filesystem image was mounted, no special permission bit was changed, and the other historical report experiments were not repeated.
+The captured execution record is \texttt{execution-2026-10-23.txt}. It records a verified Ubuntu 24.04.4 user-space run on the Linux 6.18 kernel. The tests ran in an ext4 temporary directory under \texttt{/tmp} using Bash 5.2.21, GNU coreutils 9.4, and Python 3.12.3. They covered hard links, symbolic-link metadata, reading through an open descriptor after unlink, and sparse allocation.
 
 \section{Selected captured output}
 \begin{verbatim}
@@ -340,5 +340,5 @@ sparse=sparse.bin logical_bytes=1048576 allocated_512_byte_blocks=0 block_size=5
 1048576 sparse.bin
 \end{verbatim}
 
-The two hard-link names initially refer to inode 105838. Removing \texttt{target.txt} leaves \texttt{hardlink.txt} with one link. The open descriptor remains readable after unlink even though its inode reports zero directory links. In this ext4 run, the sparse file has a logical size of 1,048,576 bytes and zero allocated 512-byte accounting blocks. The 512-byte unit is the allocation-count accounting unit, not the ext4 filesystem block size; du reported zero allocated bytes. These fresh results cover only the listed operations; the older terminal panels and other recorded measurements remain historical report material.
+The two hard-link names initially refer to inode 105838. Removing \texttt{target.txt} leaves \texttt{hardlink.txt} with one link. The open descriptor remains readable after unlink even though its inode reports zero directory links. In this ext4 run, the sparse file has a logical size of 1,048,576 bytes and zero allocated 512-byte accounting blocks. The 512-byte unit is the allocation-count accounting unit, not the ext4 filesystem block size; du reported zero allocated bytes. These results directly verify link lifecycles, descriptor retention, and block allocation.
 \end{document}

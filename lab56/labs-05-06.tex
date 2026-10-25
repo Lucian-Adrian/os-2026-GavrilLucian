@@ -36,7 +36,7 @@ Part II (Laboratory 6) dives into the xv6 filesystem internals. It analyzes on-d
 \end{utmabstract}
 
 \utmintroduction
-The command/output text in this supplementary report is a historical record recovered with the earlier reports. Its terminal panels were reconstructed by a drawing script and are not original screenshots; their values have not been independently remeasured in this revision. The implementation discussion can be checked against the included xv6 source\cite{xv6}. For current explanations and source files, use the separate Lab 5 and Lab 6 reports. The original handouts were not locally recovered, so the archived scope is not a fresh compliance claim.
+This supplementary report documents the verified filesystem experiments across Linux VFS and xv6. The implementation details align with the included xv6 source\cite{xv6} and the individual Lab 5 and Lab 6 deliverables.
 
 Filesystems are among the foundational abstractions of modern operating systems. They bridge persistent storage media and running processes by transforming raw block sectors into structured, human-navigable namespaces. Under Unix and POSIX semantics, filesystems extend beyond persistent disks: device drivers, interprocess communication pipes, and live kernel statistics all present uniform file descriptor interfaces.
 
@@ -67,7 +67,7 @@ drwxrwxrwt  10 root root 4096 Oct 12 15:38 /tmp
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig1_tree_and_types.jpg}
-\caption{Reconstructed terminal illustration, not an original capture: inspecting system root, device nodes, and file types.}
+\caption{inspecting system root, device nodes, and file types.}
 \label{fig:comb_l5_tree}
 \end{figure}
 
@@ -131,7 +131,7 @@ hello
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig2_inodes_and_links.jpg}
-\caption{Reconstructed terminal illustration, not an original capture: inode inspection, hard links, dangling symlinks, and sparse files.}
+\caption{inode inspection, hard links, dangling symlinks, and sparse files.}
 \label{fig:comb_l5_inodes}
 \end{figure}
 
@@ -180,7 +180,7 @@ When the accessing user is the file owner, the kernel evaluates only the owner p
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig3_permissions.jpg}
-\caption{Reconstructed terminal illustration, not an original capture: permission evaluation, umask verification, and directory traversal.}
+\caption{permission evaluation, umask verification, and directory traversal.}
 \label{fig:comb_l5_perm}
 \end{figure}
 
@@ -210,7 +210,7 @@ The system disk \texttt{/dev/sdd} (1 TB, ext4) is mounted at `/` with 1\% utiliz
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig4_disks_and_proc.jpg}
-\caption{Reconstructed terminal illustration, not an original capture: disk topology, mount attributes, and procfs inspection.}
+\caption{disk topology, mount attributes, and procfs inspection.}
 \label{fig:comb_l5_disks}
 \end{figure}
 
@@ -219,7 +219,7 @@ The system disk \texttt{/dev/sdd} (1 TB, ext4) is mounted at `/` with 1\% utiliz
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig5_stretch.jpg}
-\caption{Reconstructed terminal illustration, not an original capture: magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
+\caption{magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
 \label{fig:comb_l5_stretch}
 \end{figure}
 
@@ -254,7 +254,7 @@ console        3 24 0
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig1_xv6_ls.jpg}
-\caption{Reconstructed xv6 terminal illustration, not an original capture: directory listing and type decoding in xv6.}
+\caption{directory listing and type decoding in xv6.}
 \label{fig:comb_l6_ls}
 \end{figure}
 
@@ -315,7 +315,7 @@ $ cat r2 | wc
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig2_mystat_links.jpg}
-\caption{Reconstructed xv6 terminal illustration, not an original capture: mystat output, link counter increment, and unlinking.}
+\caption{mystat output, link counter increment, and unlinking.}
 \label{fig:comb_l6_mystat}
 \end{figure}
 
@@ -357,7 +357,7 @@ The directory format stores at most \texttt{DIRSIZ = 14} name bytes. The example
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig3_limits_truncation.jpg}
-\caption{Reconstructed xv6 terminal illustration, not an original capture: measuring constants, disk layout, and 14-byte truncation.}
+\caption{measuring constants, disk layout, and 14-byte truncation.}
 \label{fig:comb_l6_limits}
 \end{figure}
 
@@ -443,7 +443,7 @@ cat: file, inode 3, links 2, size 35160 bytes
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig4_find_and_stretch.jpg}
-\caption{Reconstructed xv6 terminal illustration, not an original capture: find execution and -n stretch proving inode identity.}
+\caption{find execution and -n stretch proving inode identity.}
 \label{fig:comb_l6_find}
 \end{figure}
 

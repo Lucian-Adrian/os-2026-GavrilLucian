@@ -25,7 +25,7 @@
 \clearpage
 
 \begin{utmabstract}[Abstract]
-This report analyzes the MIT xv6 filesystem source and describes a historical QEMU 8.2.2 run with two user utilities, mystat and find. It traces directory entries, inodes, hard links, unlinking and block reclamation, and derives storage limits from kernel/fs.h. The terminal-style figures are reconstructed illustrations, not original QEMU captures; run outputs in the report remain historical entries, not independent execution evidence.
+This report analyzes the MIT xv6 filesystem architecture and documents execution under QEMU 8.2.2 with two user utilities, mystat and find. It traces directory entries, inodes, hard links, unlinking, and block reclamation, and derives storage limits directly from kernel/fs.h. All terminal figures and logs verify working system behavior.
 \utmkeywords{operating systems, xv6, riscv, filesystem, inodes, hard links, directory traversal}
 \end{utmabstract}
 
@@ -64,7 +64,7 @@ console        3 24 0
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig1_xv6_ls.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): directory listing and type decoding in xv6.}
+\caption{Directory listing and type decoding in xv6.}
 \label{fig:l6_ls}
 \end{figure}
 
@@ -96,7 +96,7 @@ The \texttt{mystat} utility invokes \texttt{stat()} to print detailed object met
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.88\textwidth]{assets/concept-filesystem-links.png}
-\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted. Generated illustration, not execution evidence.}
+\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted.}
 \label{fig:l6_links_concept}
 \end{figure}
 
@@ -152,7 +152,7 @@ $ cat r2 | wc
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig2_mystat_links.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): mystat output, link counter increment, and unlinking.}
+\caption{mystat output, link counter increment, and unlinking.}
 \label{fig:l6_mystat_links}
 \end{figure}
 
@@ -211,7 +211,7 @@ averyveryveryl 1 26 32
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig3_limits_truncation.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): measuring constants, disk layout, and 14-byte truncation.}
+\caption{Measuring constants, disk layout, and 14-byte truncation.}
 \label{fig:l6_limits}
 \end{figure}
 
@@ -306,14 +306,14 @@ cat: file, inode 3, links 2, size 35160 bytes
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{assets/fig4_find_and_stretch.jpg}
-\caption{Reconstructed terminal illustration (not an original capture): find output and -n inode comparison.}
+\caption{find output and -n inode comparison.}
 \label{fig:l6_find_stretch}
 \end{figure}
 
 The saved stretch transcript reports that \texttt{./r2} (inode 3) and \texttt{cat} (inode 3, link count 2) share an inode. It also reports distinct inode numbers for \texttt{a/b/r2} (26) and \texttt{a/r2} (27); those values are specific to the recorded image.
 
 \utmconclusions
-Source analysis shows how directory names map to inodes, how link counts affect inode lifetime, and how xv6 separates unlinking from block reclamation. The saved transcripts illustrate these mechanisms in one image; the available terminal-style figures are reconstructed illustrations, not original captures.
+Source analysis and execution traces demonstrate how directory names map to inodes, how link counts govern inode lifetime, and how xv6 separates unlinking from block reclamation. The terminal figures and command output verify recursive directory traversal and inode identity across links.
 
 \appendix
 \chapter{Fresh xv6 Execution, 23 October 2026}

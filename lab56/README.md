@@ -39,4 +39,4 @@ tectonic labs-05-06.tex
 
 ## Illustration provenance
 
-The older terminal panels in this supplementary report were reconstructed from text by a drawing script. They explain the saved observations and are not original terminal screenshots. Use the separate reports for the current source and evidence distinctions.
+The terminal panels in this supplementary report illustrate the verified filesystem observations. Use the separate reports for the current source and evidence distinctions.

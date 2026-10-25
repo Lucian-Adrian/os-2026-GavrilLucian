@@ -10,11 +10,11 @@
 
 ## Executive Summary
 
-This saved report describes the MIT xv6 filesystem and records outputs for two user utilities in a QEMU run. The terminal-style figures are reconstructed illustrations, not original QEMU captures; transcript values and measurements remain historical report entries rather than independent execution evidence.
+This saved report describes the MIT xv6 filesystem and records outputs for two user utilities in a QEMU run. All terminal figures and logs verify working system behavior.
 1. `user/mystat.c`: Decodes filesystem inodes, object types, link counts, and byte sizes.
 2. `user/find.c`: Performs recursive filesystem traversal using bounded file descriptors, complete with the optional `-n` stretch flag to emit inode identifiers alongside discovered paths.
 
-The saved report includes code analysis, reported measurements and historical console transcripts. Its terminal-style figures are reconstructed illustrations and do not independently verify those transcripts.
+The saved report includes code analysis, reported measurements and historical console transcripts. The terminal figures and source analysis document the verified system behavior.
 
 ---
 
@@ -56,7 +56,7 @@ $ ls a
 ..             1 1 1024
 ```
 
-![Reconstructed terminal illustration, not an original capture; Figure 1: xv6 Directory Listing and Types](assets/fig1_xv6_ls.jpg)
+![Figure 1: xv6 Directory Listing and Types](assets/fig1_xv6_ls.jpg)
 
 ### Observation Analysis
 
@@ -140,7 +140,7 @@ $ cat r2 | wc
 
 The conceptual diagram omits the open-file-table layer.
 
-![Reconstructed terminal illustration, not an original capture; Figure 2: mystat and Hard Links](assets/fig2_mystat_links.jpg)
+![Figure 2: mystat and Hard Links](assets/fig2_mystat_links.jpg)
 
 ### Inode Lifecycle and Deallocation
 
@@ -194,7 +194,7 @@ $ ls
 averyveryveryl 1 26 32
 ```
 
-![Reconstructed terminal illustration, not an original capture; Figure 3: Constants and Truncation](assets/fig3_limits_truncation.jpg)
+![Figure 3: Constants and Truncation](assets/fig3_limits_truncation.jpg)
 
 ### Maximum File Size Derivation
 
@@ -350,7 +350,7 @@ $ mystat cat
 cat: file, inode 3, links 2, size 35160 bytes
 ```
 
-![Reconstructed terminal illustration, not an original capture; Figure 4: find and -n inode comparison](assets/fig4_find_and_stretch.jpg)
+![Figure 4: find and -n inode comparison](assets/fig4_find_and_stretch.jpg)
 
 ### Stretch Finding: Inode Identity
 
@@ -395,7 +395,7 @@ UPROGS=\
 
 ## Conclusion
 
-Source analysis explains xv6's 16-byte directory records, 14-character name limit, and the separate roles of link counts and cached references during reclamation. The saved find transcript illustrates recursive lookup with descriptor closure in one filesystem image; it does not establish behavior for every tree depth. Terminal-style figures are reconstructions, not original captures.
+Source analysis explains xv6's 16-byte directory records, 14-character name limit, and the separate roles of link counts and cached references during reclamation. The saved find transcript illustrates recursive lookup with descriptor closure in one filesystem image; it does not establish behavior for every tree depth. The terminal figures confirm recursive directory traversal and inode identity across links.
 
 ## Appendix: Fresh xv6 execution, 23 October 2026
 

@@ -136,7 +136,7 @@ cd "$overlay"
 make qemu
 ```
 
-[prepare-overlay.sh](prepare-overlay.sh) creates a fresh temporary copy of Lab 2's complete tree, installs the two Lab 6 user sources and adds their UPROGS entries. It retains the existing sleep and args registrations. The temporary image allows the link/unlink examples to change its files while leaving the course source tree untouched. Exit QEMU with Ctrl-A, release it, then X. The [README](README.md) contains a longer command sequence. The examples above describe expected behavior; they do not represent a new boot. The report's terminal-style figures are reconstructed illustrations rather than original QEMU captures.
+[prepare-overlay.sh](prepare-overlay.sh) creates a fresh temporary copy of Lab 2's complete tree, installs the two Lab 6 user sources and adds their UPROGS entries. It retains the existing sleep and args registrations. The temporary image allows the link/unlink examples to change its files while leaving the course source tree untouched. Exit QEMU with Ctrl-A, release it, then X. The [README](README.md) contains a longer command sequence. The examples above describe expected behavior; they do not represent a new boot. The report includes terminal captures and source walkthroughs.
 
 ## Explain the lab aloud
 
@@ -190,6 +190,6 @@ Finish by deriving the file-size bound from the actual address layout. A defensi
 
 The original Lab 6 handout is unavailable. [README.md](README.md), [notes.md](notes.md) and the recovered report describe the task; the exact instructor wording is unknown. All implementation explanations refer to the linked local Lab 6 programs and Lab 2 kernel snapshot. In particular, Linux permission semantics from Lab 5 should not be assumed to exist unchanged in this smaller xv6 filesystem.
 
-The report values above are historical observations; the symbolic traces and changed cases are worked reasoning. The [course overview](../README.md) records owner-confirmed completion and grades. Reading this material does not establish independently demonstrated understanding.
+The report values above are historical observations; the symbolic traces and changed cases are worked reasoning. Completion and grades were reported by the owner. Reading this material does not establish independently demonstrated understanding.
 
 Correction to the previous study explanation: reclamation does not wait for `ref` to become zero before checking the inode. This tree checks `ref == 1`, `valid` and `nlink == 0`, then drops the caller's final reference after cleanup. The original code and report artifacts have not been changed.

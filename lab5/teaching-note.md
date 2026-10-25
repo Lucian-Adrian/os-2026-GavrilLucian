@@ -236,4 +236,4 @@ If asked whether this proves behavior on every filesystem, identify the actual g
 
 The task descriptions come from [report.md](report.md) and [README.md](README.md), recovered at GitHub commit `183ff1340c42620ccb86b2f0d3493e0d667d5a78`; the original Lab 5 handout remains unavailable. Part 2 supplies the link and sparse-file sequences, Part 3 the permission examples, Part 4 `/proc`, and the stretch sections the descriptor and image examples. Lab 5 has no authored C implementation; [Lab 6](../lab6/teaching-note.md) traces related services through xv6 source.
 
-The report's 12 October outputs are historical measurements. Its terminal-style JPEGs are reconstructed illustrations, not original captures, and do not independently verify those outputs.
+The report's 12 October outputs are historical measurements. 

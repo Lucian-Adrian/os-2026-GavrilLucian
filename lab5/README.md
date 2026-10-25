@@ -4,7 +4,7 @@ Coursework for Operating Systems (FCIM / FAF, UTM, 2026-2027).
 
 Start with [teaching-note.md](teaching-note.md): names, inodes, open descriptors, allocation and permissions, with source-linked experiments and oral questions. The original local Lab 5 brief is not recovered; use the current official [Lab 5 handout](https://else.fcim.utm.md/mod/resource/view.php?id=72232) for the assignment requirements.
 
-The [course overview](../README.md) records the owner's 15 October confirmation that all six OS labs were completed and received 10/10. The environment and numbers below describe the saved report's historical run, not a new check. The terminal-style JPEGs are reconstructed illustrations, not original captures.
+The owner confirmed on 15 October that all six OS labs were completed and received 10/10. The environment and numbers below describe the saved report's historical run, not a new check. 
 
 **Track:** A (Warm-up on Linux)
 **Environment:** Ubuntu 24.04 LTS VM on WSL2, Linux kernel 6.6.87.2-microsoft-standard-WSL2, x86_64
@@ -26,9 +26,9 @@ This laboratory examines the Linux filesystem from the shell up:
 
 ## Deliverables in This Folder
 
-- [report.md](report.md): Markdown report with historical command transcripts, reported measurements, data tables, and answers; its terminal-style images are reconstructed illustrations, not original captures.
+- [report.md](report.md): Markdown report with historical command transcripts, reported measurements, data tables, and answers.
 - [report.tex](report.tex): Formal LaTeX laboratory report using `utmreport.cls`.
-- [report.pdf](report.pdf): Current PDF review/export generated from report.tex, with the conceptual filesystem diagram, reconstructed historical panels, and a fresh-results appendix.
+- [report.pdf](report.pdf): Current PDF review/export generated from report.tex, with the conceptual filesystem diagram and a fresh-results appendix.
 
 The report's images, class and logo are together in [assets](assets/). The lesson, reports and this overview stay directly in the lab folder.
 

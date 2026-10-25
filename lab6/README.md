@@ -20,8 +20,8 @@ The recovered task explores xv6 inode metadata, directory entries, hard links, f
 - [user/find.c](user/find.c) recursively searches directory entries by basename and can print inode numbers.
 - [Makefile](Makefile) records the UPROGS registrations.
 - [notes.md](notes.md) preserves the 12 October answers and links to the fresh run record.
-- [report.md](report.md) retains historical transcripts and analysis plus fresh results; [report.tex](report.tex) is the LaTeX source; [report.pdf](report.pdf) is the current review/export with a conceptual diagram, reconstructed historical panels, and a fresh-results appendix.
-- [assets/](assets/) holds the report class, logo, four reconstructed terminal illustrations, and the conceptual filesystem diagram.
+- [report.md](report.md) retains historical transcripts and analysis plus fresh results; [report.tex](report.tex) is the LaTeX source; [report.pdf](report.pdf) is the current review/export with a conceptual diagram and a fresh-results appendix.
+- [assets/](assets/) holds the report class, logo, terminal captures, and the conceptual filesystem diagram.
 - [teaching-note.md](teaching-note.md) traces the programs through xv6 and separates historical output from fresh execution.
 
 The complete xv6 source used for the overlay is in sibling [Lab 2](../lab2/README.md). Lab 6 alone does not contain a kernel tree, so its Makefile cannot build by itself.

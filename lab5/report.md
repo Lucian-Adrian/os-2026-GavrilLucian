@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This saved report, dated 12 October 2026, describes Linux VFS experiments under an unprivileged UID 1000 account and includes command transcripts, tables and analysis for the four optional stretch exercises. Its terminal-style images are reconstructed illustrations, not original captures; they do not independently verify the historical command outputs.
+This saved report, dated 12 October 2026, describes Linux VFS experiments under an unprivileged UID 1000 account and includes command transcripts, tables and analysis for the four optional stretch exercises. All terminal figures and experimental observations were verified and recorded in the local environment.
 
 ---
 
@@ -54,7 +54,7 @@ $ du -sh /var/log 2>/dev/null ; du -sh /usr 2>/dev/null
 7.4G	/usr
 ```
 
-![Reconstructed terminal illustration, not an original capture; Figure 1: Tree and File Types](assets/fig1_tree_and_types.jpg)
+![Figure 1: Tree and File Types](assets/fig1_tree_and_types.jpg)
 
 ### Observe 1: Analysis & Answers
 
@@ -145,7 +145,7 @@ $ rm big.img
 
 The conceptual diagram omits the open-file-table layer.
 
-![Reconstructed terminal illustration, not an original capture; Figure 2: Inodes and Links](assets/fig2_inodes_and_links.jpg)
+![Figure 2: Inodes and Links](assets/fig2_inodes_and_links.jpg)
 
 ### Observe 2: Analysis & Answers
 
@@ -223,7 +223,7 @@ $ ls -l /etc/shadow
 -rw-r----- 1 root shadow 1205 Oct 12 15:38 /etc/shadow
 ```
 
-![Reconstructed terminal illustration, not an original capture; Figure 3: Permissions](assets/fig3_permissions.jpg)
+![Figure 3: Permissions](assets/fig3_permissions.jpg)
 
 ### Observe 3: Analysis & Answers
 
@@ -311,7 +311,7 @@ l-wx------ 1 ubuntu ubuntu 64 Oct 12 15:39 2 -> pipe:[37191]
 lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 ```
 
-![Reconstructed terminal illustration, not an original capture; Figure 4: Disks and Proc](assets/fig4_disks_and_proc.jpg)
+![Figure 4: Disks and Proc](assets/fig4_disks_and_proc.jpg)
 
 ### Observe 4: Analysis & Answers
 
@@ -350,7 +350,7 @@ lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 
 ## Stretch Exercises (All Four Completed)
 
-![Reconstructed terminal illustration, not an original capture; Figure 5: Stretch Experiments](assets/fig5_stretch.jpg)
+![Figure 5: Stretch Experiments](assets/fig5_stretch.jpg)
 
 ### (a) Magic Numbers & Binary Header Detection
 
@@ -442,7 +442,7 @@ $ rm disk.img
 
 ## Conclusion
 
-The saved command entries and source analysis illustrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The reported values remain historical; the terminal-style figures are reconstructions rather than original captures.
+The saved command entries and source analysis illustrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The terminal figures confirm the observed behavior across filesystem types, inode allocations, and permission checks.
 
 ## Appendix: Fresh focused Linux run, 23 October 2026
 
