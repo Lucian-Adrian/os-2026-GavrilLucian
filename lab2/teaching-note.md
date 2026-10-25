@@ -78,4 +78,4 @@ Start with the user/kernel boundary, then trace one request: the shell forks a c
 
 ## Source and status
 
-The walkthrough follows [the Lab 2 brief](lab-02-brief.docx) and the xv6 revision pinned in [the lab README](README.md). notes.md retains the earlier measured build, boot and command-check results; this revision does not claim a new QEMU run. The [course overview](../README.md#completion-record) records the owner's 15 October confirmation that all six labs were completed with 10/10 each; the portal gradebook was not independently checked.
+The walkthrough follows [the Lab 2 brief](lab-02-brief.docx) and the xv6 revision pinned in [the lab README](README.md). notes.md retains the earlier measured build, boot and command-check results; this revision does not claim a new QEMU run. The owner confirmed on 15 October that all six labs were completed with 10/10 each; the portal gradebook was not independently checked.

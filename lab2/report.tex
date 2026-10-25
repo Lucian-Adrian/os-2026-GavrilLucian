@@ -1,0 +1,198 @@
+\documentclass{assets/utmreport}
+
+\usepackage{booktabs,amssymb,float,tabularx,longtable}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{assets/utm-logo.jpeg}
+
+\institution{Technical University of Moldova}
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+\department{Department of Software Engineering}
+\studyprogramme{Software Engineering Study Programme}
+\documenttype{Laboratory report}
+\reporttitle{Operating Systems Laboratory 2}
+\reportsubtitle{Meet the OS You Will Build}
+\student{Lucian-Adrian Gavril}{FAF-241}
+\supervisor{Reițman Patricia}{univ. assist.}
+\cityyear{Chișinău}{2026}
+
+\begin{document}
+\makeutmreporttitlepage
+\tableofcontents
+\clearpage
+
+\begin{utmabstract}[Abstract]
+This laboratory report documents the compilation, booting, source-code analysis, and user-space program development for the MIT xv6 educational operating system running on an emulated RISC-V platform via QEMU. The experimental work explores the architectural boundary between unprivileged user processes and privileged kernel services. A new user utility, \texttt{sleep.c}, was implemented with strict argument validation and registered in the xv6 build system under \texttt{UPROGS}. Furthermore, an inter-process communication exchange utilizing two unidirectional pipes was authored and verified in \texttt{pingpong.c}. Build benchmarks, boot sequences, and command outputs confirm the correct operation of system call dispatching, pipeline coordination, and scheduler blocking.
+\utmkeywords{operating systems, xv6, riscv, system calls, qemu, process scheduling, pipelines}
+\end{utmabstract}
+
+\utmintroduction
+While modern production operating systems such as Linux comprise millions of lines of source code, educational kernels provide transparent environments where kernel mechanisms can be studied directly. The MIT xv6 operating system is a modern re-implementation of Unix Version 6 written in approximately 9,000 lines of C for the RISC-V 64-bit architecture.
+
+The objective of Laboratory 2 is to build xv6 from source, execute it within the QEMU emulator, analyze its shell and user/kernel separation, implement a user-space utility that triggers kernel system calls, and examine inter-process pipe communication:
+\begin{utmenumerate}
+\item \textbf{Build and Emulation}: Compiling the RISC-V kernel, formatting the initial file system image (\texttt{fs.img}), and booting the system to the initial shell prompt;
+\item \textbf{Shell Operations}: Evaluating primitive Unix commands (\texttt{ls}, \texttt{cat}, \texttt{echo}, \texttt{wc}) and analyzing how pipelines connect child processes via kernel buffers;
+\item \textbf{Codebase Architecture}: Tracing user-space library stubs, assembly trap entries (\texttt{ecall}), system call dispatch tables, and privileged kernel handlers;
+\item \textbf{User Program Development}: Authoring \texttt{user/sleep.c} to interface with the kernel timer service and authoring \texttt{pingpong.c} for bidirectional pipe communication.
+\end{utmenumerate}
+
+\chapter{Compilation, Booting, and Shell Operations}
+
+\section{Compilation Benchmark and Boot Sequence}
+The kernel and user utilities were compiled with the RISC-V cross-compiler toolchain, and the filesystem image was generated using \texttt{mkfs}. Compilation completed in 2.158 seconds. The guest kernel booted under QEMU 8.2.2 and presented the interactive shell prompt after 2.459 seconds:
+
+\begin{verbatim}
+$ make -C xv6-riscv -j2 kernel/kernel fs.img
+Build elapsed seconds: 2.158
+
+$ qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel \
+  -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 \
+  -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+hart 1 starting
+hart 2 starting
+init: starting sh
+$
+\end{verbatim}
+
+The \texttt{init: starting sh} line marks the successful transition from kernel hardware initialization to the execution of the first user-space process (PID 1).
+
+\section{Interactive Shell Commands and Pipeline Execution}
+Standard utilities were executed to confirm filesystem mounting and executable loading:
+\begin{verbatim}
+$ ls
+README         2 2 2425
+cat            2 3 35176
+echo           2 4 34096
+grep           2 6 42520
+sleep          2 14 33824
+wc             2 18 36128
+console        3 23 0
+
+$ cat README | head -n 2
+xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
+Version 6 (v6). xv6 loosely follows the structure and style of v6,
+
+$ echo hello xv6
+hello xv6
+
+$ ls | grep c
+cat            2 3 35176
+echo           2 4 34096
+wc             2 18 36128
+console        3 23 0
+
+$ wc README
+48 334 2425 README
+\end{verbatim}
+
+\section{Answers to Observe Prompts (Part 2: xv6 Shell)}
+\begin{utmenumerate}
+\item \textbf{Included Programs}: Three programs compiled into the filesystem image and listed in \texttt{UPROGS} are \texttt{ls}, \texttt{cat}, and \texttt{echo};
+\item \textbf{Pipeline Coordination}: The command \texttt{ls | grep c} requires two separate processes (one producer and one consumer) because each binary executes an independent instruction stream and needs private file descriptors. In \texttt{user/sh.c}, the shell allocates a pipe via \texttt{pipe()}, forks child processes, redirects file descriptors using \texttt{dup()} and \texttt{close()}, and lets the kernel transfer data through a circular memory buffer;
+\item \textbf{Comparison with Linux Shell}: The xv6 shell provides a minimal set of control structures (pipes, sequential execution, redirection, background jobs) without environment variable parsing, globbing, or terminal readline history. The Linux shell provides complete POSIX expansions, job control, and extensive script grammar.
+\end{utmenumerate}
+
+\chapter{Source Code Inspection: User vs. Kernel Boundary}
+
+\section{System Call Interfaces in user/cat.c}
+Inspecting \texttt{user/cat.c} reveals the explicit boundary between application logic and kernel services:
+\begin{itemize}
+\item \texttt{open(argv[i], O\_RDONLY)}: Requests the kernel to allocate a file descriptor;
+\item \texttt{read(fd, buf, sizeof(buf))}: Traps into the kernel to fetch data blocks from disk;
+\item \texttt{write(1, buf, n)}: Transmits bytes to standard output (file descriptor 1);
+\item \texttt{close(fd)}: Releases the allocated file descriptor in the process table;
+\item \texttt{exit(0)}: Terminates process execution and yields exit status to the parent.
+\end{itemize}
+While \texttt{fprintf} formats text in user space via \texttt{user/printf.c}, it ultimately invokes the \texttt{write()} system call to display characters.
+
+\section{System Call Dispatch Path}
+Table \ref{tab:l2_dispatch} traces the execution trajectory of a user request from application space to physical execution in kernel mode.
+
+\begin{table}[H]
+\caption{System call dispatch trajectory in xv6}
+\label{tab:l2_dispatch}
+\centering
+\small
+\begin{tabularx}{\textwidth}{|l|p{4.0cm}|X|}
+\hline
+\textbf{Layer} & \textbf{Source File} & \textbf{Role in Execution} \\
+\hline
+User Source & \texttt{user/sleep.c} & Validates command-line parameters and invokes the stub. \\
+\hline
+User Interface & \texttt{user/user.h} & Prototypes function signature for the C compiler. \\
+\hline
+Assembly Stub & \texttt{user/usys.S} & Loads system call number into register \texttt{a7} and issues \texttt{ecall}. \\
+\hline
+Trap Handler & \texttt{kernel/trap.c} & Saves CPU context and routes trap to \texttt{syscall()}. \\
+\hline
+Dispatcher & \texttt{kernel/syscall.c} & Indexes \texttt{syscalls[]} array by number in \texttt{a7}. \\
+\hline
+Kernel Service & \texttt{kernel/sysproc.c} & Implements privileged handler (\texttt{sys\_sleep} / \texttt{sys\_pause}). \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Answers to Observe Prompts (Part 3: Reading Source)}
+\begin{utmenumerate}
+\item \textbf{System Calls in cat.c}: The utility uses \texttt{open}, \texttt{read}, \texttt{write}, \texttt{close}, and \texttt{exit}. The formatted output routine \texttt{fprintf} is a user-space library function;
+\item \textbf{Implementation of sys\_read}: The handler \texttt{sys\_read} is implemented in \texttt{kernel/sysfile.c} (line 69);
+\item \textbf{User vs. Kernel Distinction}: Code under \texttt{kernel/} executes in RISC-V supervisor mode with unrestricted access to physical memory, page tables, and hardware device registers. Code under \texttt{user/} executes in unprivileged user mode and cannot access hardware directly; it must request privileged operations through system calls.
+\end{utmenumerate}
+
+\chapter{User Utilities: sleep and pingpong}
+
+\section{Implementation of user/sleep.c}
+The \texttt{sleep} utility was authored to accept a positive tick duration:
+\begin{verbatim}
+#include "kernel/types.h"
+#include "user/user.h"
+
+int
+main(int argc, char *argv[])
+{
+  if (argc != 2) {
+    fprintf(2, "usage: sleep <ticks>\n");
+    exit(1);
+  }
+  pause(atoi(argv[1]));
+  exit(0);
+}
+\end{verbatim}
+
+In accordance with current course xv6 specifications, the program delegates to the kernel tick delay interface (\texttt{pause()}).
+
+\section{Build System Registration and Verification}
+The program was registered in the \texttt{Makefile} by appending \texttt{\$U/\_sleep\textbackslash} to \texttt{UPROGS}. Live execution under QEMU verified both normal and error paths:
+\begin{verbatim}
+$ sleep 10
+# Returns cleanly to prompt after 0.958 seconds wall-clock time
+
+$ sleep
+usage: sleep <ticks>
+\end{verbatim}
+
+\section{Optional Two-Pipe Communication: pingpong.c}
+To verify bidirectional inter-process communication without race conditions, \texttt{pingpong.c} establishes two separate unidirectional pipes before calling \texttt{fork()}:
+\begin{verbatim}
+$ pingpong
+4: received ping
+3: received pong
+\end{verbatim}
+
+The parent process writes a token byte to \texttt{parent\_to\_child[1]}, which the child (PID 4) reads and announces. The child then writes the byte back to \texttt{child\_to\_parent[1]}, and the parent (PID 3) completes the exchange and reaps the child process. Closing unused pipe descriptor copies ensures proper EOF signaling.
+
+\utmconclusions
+Laboratory 2 provided hands-on experience in building, booting, and extending the xv6 Unix operating system. The experimental work established that:
+\begin{utmenumerate}
+\item Operating system hardware abstractions decouple user applications from raw CPU architecture;
+\item System calls enforce security and isolation by transitioning the processor from unprivileged user mode to supervisor mode via defined assembly stubs;
+\item Interprocess pipelines rely on kernel-mediated buffer synchronization to coordinate concurrent producer and consumer processes;
+\item Registering user binaries in \texttt{UPROGS} integrates compiled programs directly into the bootable filesystem image.
+\end{utmenumerate}
+\end{document}

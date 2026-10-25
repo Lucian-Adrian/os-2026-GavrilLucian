@@ -86,4 +86,4 @@ Start with the kernel as the manager that mediates access to resources, then tra
 
 ## Source note
 
-The command examples follow Parts 1 to 4 of [the handout](lab-01-brief.docx). The dated outputs above come from [the existing report](report.md); Lab 1 contains no C implementation to trace. The [course overview](../README.md#completion-record) records the owner's 15 October confirmation that all six labs were completed with 10/10 each; the portal gradebook was not independently checked.
+The command examples follow Parts 1 to 4 of [the handout](lab-01-brief.docx). The dated outputs above come from [the existing report](report.md); Lab 1 contains no C implementation to trace. The owner confirmed on 15 October that all six labs were completed with 10/10 each; the portal gradebook was not independently checked.

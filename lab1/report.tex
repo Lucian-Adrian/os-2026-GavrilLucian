@@ -1,0 +1,215 @@
+\documentclass{assets/utmreport}
+
+\usepackage{booktabs,amssymb,float,tabularx}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{assets/utm-logo.jpeg}
+
+\institution{Technical University of Moldova}
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+\department{Department of Software Engineering}
+\studyprogramme{Software Engineering Study Programme}
+\documenttype{Laboratory report}
+\reporttitle{Operating Systems Laboratory 1}
+\reportsubtitle{The OS as a Resource Manager}
+\student{Lucian-Adrian Gavril}{FAF-241}
+\supervisor{Reițman Patricia}{univ. assist.}
+\cityyear{Chișinău}{2026}
+
+\begin{document}
+\makeutmreporttitlepage
+\tableofcontents
+\clearpage
+
+\begin{utmabstract}[Abstract]
+This laboratory report investigates the four fundamental responsibilities of an operating system: file system management, process management, memory management, and device/storage management. The investigation was conducted on an Ubuntu 24.04.4 LTS virtual machine running Linux kernel 6.8.0-136-generic on x86\_64 architecture. Using standard POSIX utilities and the Linux \texttt{/proc} virtual file system, live system states were measured, inspected, and verified. The report documents permissions enforcement, process lifecycle monitoring, physical memory accounting, and block device abstraction.
+\utmkeywords{operating systems, linux, resource management, processes, virtual filesystem, memory management}
+\end{utmabstract}
+
+\utmintroduction
+The operating system acts as an intermediary resource manager standing between application programs and the physical hardware. Rather than permitting user applications direct, uncoordinated access to physical storage, CPU registers, and RAM, the OS kernel abstracts hardware components into uniform interfaces and coordinates their allocation across concurrent workloads.
+
+The objective of Laboratory 1 is to observe and verify the four primary resource management roles of the Linux kernel from the command-line interface:
+\begin{utmenumerate}
+\item \textbf{File System Management}: Hierarchical namespace organization, directory traversal, file metadata, and Discretionary Access Control (DAC) permission enforcement;
+\item \textbf{Process Management}: Process creation, process hierarchy anchored at PID 1 (\texttt{systemd}), process state inspection via \texttt{/proc}, and signal termination;
+\item \textbf{Memory Management}: System-wide physical memory and swap accounting via \texttt{free} and \texttt{/proc/meminfo}, and per-process resident set sizing (\texttt{VmRSS});
+\item \textbf{Device and Storage Management}: Block device mapping via \texttt{lsblk}, virtual device nodes under \texttt{/dev}, and filesystem mounting verified via \texttt{df -h} and \texttt{mount}.
+\end{utmenumerate}
+
+\chapter{Environment and System Identity}
+
+\section{Host Identification}
+The commands were executed in a dedicated Ubuntu 24.04.4 LTS virtual machine under user account \texttt{ubuntu}:
+
+\begin{verbatim}
+$ whoami
+ubuntu
+
+$ uname -a
+Linux ubuntu 6.8.0-136-generic #136-Ubuntu SMP PREEMPT_DYNAMIC x86_64 GNU/Linux
+
+$ uptime
+14:24:47 up 21 min, 0 user, load average: 0.00, 0.00, 0.00
+
+$ cat /etc/os-release | grep PRETTY_NAME
+PRETTY_NAME="Ubuntu 24.04.4 LTS (Noble Numbat)"
+\end{verbatim}
+
+\section{Command-to-Observation Mapping}
+Table \ref{tab:l1_obs} outlines the experimental operations and the operating system concepts they demonstrate.
+
+\begin{table}[H]
+\caption{Laboratory 1 command-to-observation guide}
+\label{tab:l1_obs}
+\centering
+\small
+\begin{tabularx}{\textwidth}{|l|p{4.2cm}|X|}
+\hline
+\textbf{Resource} & \textbf{Commands} & \textbf{OS Mechanism Demonstrated} \\
+\hline
+Identity & \texttt{whoami}, \texttt{uname -a}, \texttt{uptime} & Execution context, kernel release, and system uptime. \\
+\hline
+Files & \texttt{ls -la /}, \texttt{ls -l}, \texttt{chmod 600} & VFS namespace, inode metadata, and DAC permission check. \\
+\hline
+Processes & \texttt{ps aux}, \texttt{ps -p 1}, \texttt{/proc/PID/status} & Process table, PID 1 hierarchy, and scheduler wait state. \\
+\hline
+Memory & \texttt{free -h}, \texttt{/proc/meminfo}, \texttt{VmRSS} & Host physical RAM accounting vs. process resident set size. \\
+\hline
+Devices & \texttt{df -h}, \texttt{lsblk}, \texttt{ls -l /dev} & Device special files, block storage, and VFS mount points. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\chapter{Files and Access Permissions}
+
+\section{Root Directory Hierarchy}
+Inspecting the root directory \texttt{/} with \texttt{ls -la /} reveals essential system directories:
+\begin{itemize}
+\item \texttt{/etc}: System-wide configuration files and lookup tables (e.g., \texttt{passwd}, \texttt{hosts});
+\item \texttt{/home}: User workspace directories containing individual user profiles;
+\item \texttt{/usr}: System binaries, shared libraries, headers, and documentation;
+\item \texttt{/dev}: Special device node files representing physical and pseudo devices.
+\end{itemize}
+
+\section{File Creation, Modification, and Permission Enforcement}
+A working file \texttt{note.txt} was created, inspected, and modified:
+\begin{verbatim}
+$ echo "hello operating systems" > note.txt
+$ ls -l note.txt
+-rw-r--r-- 1 ubuntu ubuntu 24 Sep 28 14:24 note.txt
+
+$ chmod 600 note.txt
+$ ls -l note.txt
+-rw------- 1 ubuntu ubuntu 24 Sep 28 14:24 note.txt
+\end{verbatim}
+
+\section{Answers to Observe Prompts (Files)}
+\begin{utmenumerate}
+\item \textbf{Ownership and Group}: The file owner is \texttt{ubuntu}; the owning group is \texttt{ubuntu}. In Linux, every file inode associates an owning UID and GID to evaluate access permissions;
+\item \textbf{Mode Representation after \texttt{chmod 600}}: The mode displays as \texttt{-rw-------}. The leading hyphen denotes a regular file. The first triplet (\texttt{rw-}) grants read and write authority to the owner. The second (\texttt{---}) and third (\texttt{---}) triplets completely deny read, write, and execute permissions to group members and other users;
+\item \textbf{Root Directories}: Two observed directories directly under \texttt{/} are \texttt{/etc} and \texttt{/home}.
+\end{utmenumerate}
+
+\chapter{Processes and the /proc Virtual File System}
+
+\section{Process Hierarchy and Process 1}
+The process tree is anchored at process identifier 1:
+\begin{verbatim}
+$ ps -p 1 -o pid,ppid,comm,args
+  PID  PPID COMMAND         COMMAND
+    1     0 systemd         /sbin/init
+
+$ ps aux | wc -l
+103
+\end{verbatim}
+PID 1 is \texttt{systemd} (running \texttt{/sbin/init}), the initial user-space process spawned directly by the kernel after hardware initialization. The process listing reported 103 lines, corresponding to 1 header line and 102 active processes.
+
+\section{Process State Inspection}
+A background process was launched and inspected via the \texttt{/proc} pseudo-filesystem:
+\begin{verbatim}
+$ sleep 300 &
+[1] 1784
+
+$ ps -ef | grep "[s]leep"
+ubuntu 1784 1750 0 14:24 ? 00:00:00 sleep 300
+
+$ grep -E '^(Name|State|Pid|VmRSS):' /proc/1784/status
+Name:   sleep
+State:  S (sleeping)
+Pid:    1784
+VmRSS:  1964 kB
+
+$ kill 1784
+[1]+  Terminated              sleep 300
+\end{verbatim}
+
+\section{Answers to Observe Prompts (Processes)}
+\begin{utmenumerate}
+\item \textbf{Process 1 Identity}: PID 1 is \texttt{systemd} (\texttt{/sbin/init}). It acts as the ancestor of all user-space processes and reaps orphaned child processes;
+\item \textbf{Active Process Count}: The system snapshot revealed approximately 102 active processes;
+\item \textbf{Sleeping Process State}: The state is \texttt{S (sleeping)}, representing an interruptible sleep state. The process is removed from the CPU runqueue while waiting on a timer event and consumes zero CPU cycles.
+\end{utmenumerate}
+
+\chapter{Memory Management}
+
+\section{System Memory Accounting}
+Physical and virtual memory parameters were captured using \texttt{free -h} and \texttt{/proc/meminfo}:
+\begin{verbatim}
+$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:           3.8Gi       407Mi       3.0Gi       976Ki       614Mi       3.4Gi
+Swap:             0B          0B          0B
+\end{verbatim}
+
+The VM has 3.8 GiB of total physical memory, with 3.0 GiB completely unallocated (\texttt{free}) and 3.4 GiB immediately usable (\texttt{available}), which includes memory that can be reclaimed from disk caches. Swap space was unconfigured (0 B).
+
+\section{Per-Process Resident Set Size}
+A test process resident set size was measured from \texttt{/proc/PID/status}:
+\begin{verbatim}
+$ grep VmRSS /proc/1797/status
+VmRSS: 1968 kB
+\end{verbatim}
+Even when idle in sleep state, the process occupies 1,968 kB of physical RAM to hold executable code segments, runtime libraries, environment variables, and the user stack.
+
+\chapter{Devices and File System Mounting}
+
+\section{Block Storage and Mount Points}
+The physical and virtual storage topology was inspected with \texttt{df -h} and \texttt{lsblk}:
+\begin{verbatim}
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        19G  1.9G   17G  11% /
+
+$ lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+sda      8:0    0   20G  0 disk
++-sda1   8:1    0   19G  0 part /
+sr0     11:0    1 1024M  0 rom
+\end{verbatim}
+
+The root filesystem is hosted on partition \texttt{/dev/sda1} formatted as ext4, occupying 1.9 GB of 19 GB total space (11\% utilization). The block device is backed by virtual disk \texttt{sda} (20 GB).
+
+\section{Device Special Files}
+In Linux, devices are exposed in the filesystem through special character and block device nodes under \texttt{/dev}:
+\begin{verbatim}
+$ ls -l /dev/cdrom
+lrwxrwxrwx 1 root root 3 Sep 28 14:04 /dev/cdrom -> sr0
+
+$ ls -l /dev/sr0
+brw-rw----+ 1 root cdrom 11, 0 Sep 28 14:04 /dev/sr0
+\end{verbatim}
+The symbolic link \texttt{/dev/cdrom} references block device \texttt{/dev/sr0} (major 11, minor 0). This confirms that the OS abstracts hardware interfaces into the standard file namespace.
+
+\utmconclusions
+Laboratory 1 demonstrated the four foundational roles of an operating system kernel through direct command-line inspection and system introspection. The experimental observations verified that:
+\begin{utmenumerate}
+\item The file system manager structures raw disk space into a hierarchical directory namespace and enforces permissions based on metadata stored in inodes;
+\item The process manager schedules execution threads, maintains the process hierarchy starting at PID 1, and exposes real-time state via \texttt{/proc};
+\item The memory manager tracks physical RAM and page allocation, distinguishing unallocated memory from reclaimable cache;
+\item The device manager abstracts heterogeneous physical and virtual hardware into standard device nodes under \texttt{/dev}.
+\end{utmenumerate}
+\end{document}
