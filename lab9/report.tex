@@ -53,7 +53,9 @@
 \shot{fig2_1_build_run.png}{Build with -Wall -Wextra and run of syscalls}
 
 \section{The same program seen by strace}
-\texttt{strace -e trace=openat,write,read,close ./syscalls} shows the six calls of \texttt{main} after the loader lines (Figure~2.2). Each C call is one system call with the same arguments: \texttt{open(...)} becomes \texttt{openat(AT\_FDCWD, "note.txt", O\_WRONLY|O\_CREAT|O\_TRUNC, 0644) = 3}, because glibc implements \texttt{open} with \texttt{openat} relative to the current directory; \texttt{write(3, "hello, kernel\textbackslash n", 14) = 14}; \texttt{close(3) = 0}; the second \texttt{openat} gets 3 again, because 3 was freed by the \texttt{close}; \texttt{read(3, ..., 63) = 14} asks for 63 bytes (\texttt{sizeof(buf) - 1}) and receives the 14 that exist.
+\texttt{strace -e trace=openat,write,read,close ./syscalls} shows the six calls of \texttt{main} after the loader lines (Figure~2.2). Each C call is one system call with the same arguments: \texttt{open(...)} becomes
+\begin{center}\texttt{openat(AT\_FDCWD, "note.txt", O\_WRONLY|O\_CREAT|O\_TRUNC, 0644) = 3}\end{center}
+because glibc implements \texttt{open} with \texttt{openat} relative to the current directory; \texttt{write(3, "hello, kernel\textbackslash n", 14) = 14}; \texttt{close(3) = 0}; the second \texttt{openat} gets 3 again, because 3 was freed by the \texttt{close}; \texttt{read(3, ..., 63) = 14} asks for 63 bytes (\texttt{sizeof(buf) - 1}) and receives the 14 that exist.
 
 The three \texttt{printf} lines do not appear as three writes. They appear at the end as one \texttt{write(1, ..., 80)}: when \texttt{stdout} is not a terminal (here strace's output is redirected), the C library buffers the whole output and writes it once at \texttt{exit}.
 \shot{fig2_2_strace_syscalls.png}{strace of syscalls: the program's own calls after the loader}

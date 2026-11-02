@@ -1,0 +1,38 @@
+From a4aa03c76b0b6c33f72ff29b5e7453bd626329b0 Mon Sep 17 00:00:00 2001
+From: lab <lab@local>
+Date: Mon, 2 Nov 2026 17:44:52 +0200
+Subject: [PATCH 2/3] lab10 trace.c
+
+---
+ user/trace.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+ create mode 100644 user/trace.c
+
+diff --git a/user/trace.c b/user/trace.c
+new file mode 100644
+index 0000000..5c7a5df
+--- /dev/null
++++ b/user/trace.c
+@@ -0,0 +1,19 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "user/user.h"
++
++int
++main(int argc, char *argv[])
++{
++  if (argc < 3) {
++    fprintf(2, "usage: trace mask command [args...]\n");
++    exit(1);
++  }
++  if (trace(atoi(argv[1])) < 0) {
++    fprintf(2, "trace: failed\n");
++    exit(1);
++  }
++  exec(argv[2], argv + 2);
++  fprintf(2, "trace: exec %s failed\n", argv[2]);
++  exit(1);
++}
+-- 
+2.47.3
+

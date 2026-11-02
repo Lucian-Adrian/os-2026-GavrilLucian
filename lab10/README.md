@@ -5,6 +5,7 @@
 | `report.pdf`, `report.tex` | UTM report with figures and the Observe answers |
 | `notes.txt` | Part 3 answers, as the brief asks |
 | `lab10.patch` | every change against upstream xv6 plus the Lab 4–6 programs (13 files, +140 lines) |
+| `xv6-commits/` | the three xv6 commits as `git format-patch` files (`git am` applies them) |
 | `kernel/`, `user/`, `Makefile` | the modified xv6 files: `trace` (SYS 23) and the optional `sysinfo` (SYS 24) |
 | `assets/` | figures, UTM class and logo |
 
