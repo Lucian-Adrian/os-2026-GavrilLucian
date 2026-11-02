@@ -1,6 +1,6 @@
 \documentclass{assets/utmreport}
 
-\usepackage{booktabs,amssymb,float,graphicx,listings}
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
 
 \hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
 
@@ -12,341 +12,122 @@
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
 \department{Department of Software Engineering}
 \studyprogramme{Software Engineering Study Programme}
-\documenttype{Laboratory report}
-\reporttitle{Operating Systems Laboratory 6}
+\documenttype{Report on laboratory work no. 6}
+\reporttitle{Operating Systems}
 \reportsubtitle{Inside the xv6 File System}
 \student{Lucian-Adrian Gavril}{FAF-241}
 \supervisor{Reițman Patricia}{univ. assist.}
 \cityyear{Chișinău}{2026}
 
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+
 \begin{document}
+\sloppy
 \makeutmreporttitlepage
-\tableofcontents
+{\small\tableofcontents}
 \clearpage
 
-\begin{utmabstract}[Abstract]
-This report analyzes the MIT xv6 filesystem architecture and documents execution under QEMU 8.2.2 with two user utilities, mystat and find. It traces directory entries, inodes, hard links, unlinking, and block reclamation, and derives storage limits directly from kernel/fs.h. All terminal figures and logs verify working system behavior.
-\utmkeywords{operating systems, xv6, riscv, filesystem, inodes, hard links, directory traversal}
-\end{utmabstract}
-
 \utmintroduction
-The xv6 operating system features a layered filesystem architecture modeled after Unix Sixth Edition and modern ext-family concepts, implemented in approximately 800 lines of readable C code. This architecture comprises a buffer cache, write-ahead logging layer, inode allocator, directory table mechanism, and system call interface.
+\textbf{Purpose of the work.} To repeat the Lab~5 experiments inside xv6, where the whole file system can be read in the source. The work covers how directories store names, what an inode holds, how links and unlinking work down to the line where blocks are freed, which hard limits follow from the constants in \texttt{kernel/fs.h}, and two new user programs: \texttt{mystat}, which prints an inode, and \texttt{find}, which walks a directory tree recursively.
 
-Laboratory 6 explores this filesystem from both internal and external perspectives:
-\begin{utmenumerate}
-\item \textbf{Directory Tables and Type Identification}: Interpreting directory record formatting, file type enumeration in \texttt{kernel/stat.h}, and root directory self-reference mechanics;
-\item \textbf{Inode Inspection and Link Semantics}: Developing \texttt{user/mystat.c} to inspect object metadata and observing hard link creation and unlinking;
-\item \textbf{Code Analysis of Deallocation}: Tracing the decoupling between directory record unlinking in \texttt{sys\_unlink()} and physical block deallocation in \texttt{iput()} and \texttt{itrunc()};
-\item \textbf{Structural Capacity and Disk Accounting}: Calculating theoretical file capacity from direct and indirect block pointers in \texttt{kernel/fs.h}, and evaluating disk layout geometry from \texttt{mkfs};
-\item \textbf{Recursive Search and Inode Identification}: Implementing \texttt{user/find.c} with cyclic guard logic and safe descriptor closure, incorporating the \texttt{-n} stretch flag to verify inode identity between hard-linked files;
-\end{utmenumerate}
+\textbf{Environment.} Debian GNU/Linux 13, \texttt{riscv64-linux-gnu} GCC 14, QEMU 10.0. xv6 is the current upstream \texttt{mit-pdos/xv6-riscv} with \texttt{user/mystat.c} and \texttt{user/find.c} added to \texttt{UPROGS} (together with \texttt{sleep} and \texttt{args} from Lab~4). Each QEMU session started from a freshly built \texttt{fs.img}. Every terminal figure is the real output of the commands shown in it.
 
-\chapter{Directory Representation and File Types}
+\chapter{Directories and file types}
 
-\section{Filesystem Type Enumeration}
-In xv6, file types are defined in \texttt{kernel/stat.h}:
-\begin{verbatim}
-#define T_DIR     1   // Directory
-#define T_FILE    2   // Regular file
-#define T_DEVICE  3   // Device
-\end{verbatim}
+\section{Types, the root inode and the directory entry}
+xv6 knows three file types, defined in \texttt{kernel/stat.h}: \texttt{T\_DIR} = 1, \texttt{T\_FILE} = 2, \texttt{T\_DEVICE} = 3. The root directory is inode \texttt{ROOTINO} = 1. A directory is a regular array of \texttt{struct dirent}: a 2-byte inode number \texttt{inum} and a 14-byte name \texttt{name[DIRSIZ]}, 16 bytes per entry (Figure~1.1).
+\shot{fig1_1_types_src.png}{File types, ROOTINO and struct dirent in the source}
 
-Listing the root directory produces four-column records containing name, type, inode number, and size:
-\begin{verbatim}
-$ ls
-.              1 1 1024
-..             1 1 1024
-README         2 2 2425
-cat            2 3 35160
-console        3 24 0
-\end{verbatim}
+\section{ls in xv6}
+xv6 \texttt{ls} prints name, type, inode and size for each entry (Figure~1.2). In \texttt{/}, both \texttt{.} and \texttt{..} are inode 1: the root is its own parent. The programs are type 2 with inodes 3, 4, \ldots, assigned in \texttt{UPROGS} order by \texttt{mkfs}, and \texttt{console} is type 3, a device with size 0. A new directory \texttt{a} has size 32: exactly two entries, \texttt{.} (its own inode) and \texttt{..} (inode 1), $2 \times 16 = 32$ bytes.
+\shot{fig1_2_ls.png}{ls of the root directory and of a new directory}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig1_xv6_ls.jpg}
-\caption{Directory listing and type decoding in xv6.}
-\label{fig:l6_ls}
-\end{figure}
+\chapter{mystat and the life of a link}
 
-\section{The Root Inode and Directory Self-Reference}
-The root directory `/` is anchored at inode 1 (\texttt{ROOTINO = 1}). In every directory table, `.` references the directory itself, while `..` references its parent. Because the root directory has no parent above it, its parent entry points directly to itself. Both `.` and `..` therefore map to inode 1.
+\section{user/mystat.c}
+\texttt{mystat} calls \texttt{stat()} for every argument and prints the type as a word, the inode number, the link count and the size. A path that cannot be resolved is reported on stderr, and the program continues with the remaining arguments (Figure~2.1).
+\shot{fig2_1_mystat_c.png}{The source of user/mystat.c}
 
-\section{Directory Record Sizing}
-Directory entries are defined by \texttt{struct dirent} in \texttt{kernel/fs.h}:
-\begin{verbatim}
-struct dirent {
-  ushort inum;         // 2 bytes
-  char name[DIRSIZ];   // 14 bytes (DIRSIZ = 14)
-};
-\end{verbatim}
-Each directory entry spans exactly 16 bytes. Creating an empty directory \texttt{a} yields:
-\begin{verbatim}
-$ mkdir a
-$ ls a
-.              1 25 32
-..             1 1 1024
-\end{verbatim}
-The size of directory \texttt{a} is 32 bytes, consisting of exactly two 16-byte entries: `.` (inode 25) and `..` (inode 1).
+\section{Links and unlinking}
+\texttt{ln README r2} creates a second directory entry for inode 2: both names show \texttt{links 2} and the same size, 2441. \texttt{rm README} removes only the entry. The count falls to 1, and \texttt{r2} still holds the full text: \texttt{cat r2 | wc} prints \texttt{48 336 2441} (Figure~2.2).
 
-\chapter{The mystat Utility and Hard Link Lifecycle}
+Two details differ from Linux. The root \texttt{.} shows \texttt{links 2} and the new directory \texttt{a} shows \texttt{links 1}. xv6 does not count a directory's own \texttt{.} entry, so a new directory has one link, its name in the parent. Every subdirectory then adds one to its parent through \texttt{..}, which is why \texttt{/} went from 1 to 2 when \texttt{a} was created.
+\shot{fig2_2_mystat_links.png}{mystat, a hard link and unlink}
 
-\section{Implementation of user/mystat.c}
-The \texttt{mystat} utility invokes \texttt{stat()} to print detailed object metadata. Figure \ref{fig:l6_links_concept} sketches the name-to-inode relationship used in this trace; it omits the open-file-table layer.
+\section{Where the blocks are really freed}
+\texttt{sys\_unlink()} in \texttt{kernel/sysfile.c} clears the directory entry and does \texttt{ip->nlink--} (line 244). It does not free any data. Line 239 is the extra decrement for removing a directory (its \texttt{..} pointed to the parent), and line 178 rolls back a failed \texttt{link()}. Data is freed only in \texttt{iput()} in \texttt{kernel/fs.c}. When the last in-memory reference is dropped (\texttt{ref == 1}) and the on-disk count is 0 (\texttt{nlink == 0}), \texttt{itrunc()} returns every direct and indirect block to the free bitmap (lines 357--366, Figure~2.3). So a file that is deleted while a process still has it open stays readable until the process closes it, which is the same rule observed on ext4 in Lab~5.
+\shot{fig2_3_unlink_src.png}{nlink-- in sysfile.c and the freeing condition in iput()}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/concept-filesystem-links.png}
-\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted.}
-\label{fig:l6_links_concept}
-\end{figure}
+\chapter{Limits and disk layout}
 
+\section{The constants and the on-disk inode}
+\shot{fig3_1_constants.png}{Constants in fs.h and param.h, and struct dinode}
+The on-disk inode \texttt{struct dinode} has only \texttt{type}, \texttt{major}, \texttt{minor}, \texttt{nlink}, \texttt{size} and 13 block addresses: $4 \times 2 + 4 + 13 \times 4 = 64$ bytes. Compared with ext4 it lacks owner, permission bits, timestamps and symbolic links, so xv6 has no \texttt{chmod}, no users and no \texttt{ls -l} times.
 
-\begin{verbatim}
-#include "kernel/types.h"
-#include "kernel/stat.h"
-#include "user/user.h"
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Limit} & \textbf{From} & \textbf{Value} \\
+\midrule
+Block size & \texttt{BSIZE} & 1024 bytes \\
+Direct blocks & \texttt{NDIRECT} & 12 $\rightarrow$ 12\,288 bytes \\
+Pointers in the indirect block & \texttt{NINDIRECT} = 1024 / 4 & 256 $\rightarrow$ 262\,144 bytes \\
+Maximum file size & \texttt{MAXFILE} = 12 + 256 & 268 blocks = \textbf{274\,432 bytes (268 KiB)} \\
+Maximum name length & \texttt{DIRSIZ} & 14 characters \\
+Number of inodes & \texttt{NINODES} & 200 \\
+File system size & \texttt{FSSIZE} & 2000 blocks = 2000 KiB \\
+\bottomrule
+\end{tabular}
+\caption{Limits that follow from the constants}
+\end{table}
 
-char *typename(int t) {
-  switch(t) {
-  case T_DIR:    return "directory";
-  case T_FILE:   return "file";
-  case T_DEVICE: return "device";
-  default:       return "?";
-  }
-}
+\section{Names longer than 14 characters}
+\texttt{mkdir averyveryverylongname} succeeds, but \texttt{ls} shows \texttt{averyveryveryl}, the first 14 characters (Figure~3.2). The same happens with files: \texttt{echo hi > abcdefghijklmnopq} creates an entry named \texttt{abcdefghijklmn}, and \texttt{cat abcdefghijklmn} prints \texttt{hi}. The long name itself also keeps working (\texttt{mystat abcdefghijklmnopq} finds inode 30). \texttt{namecmp()} compares only \texttt{DIRSIZ} bytes, so every name that shares the first 14 characters refers to the same file. Linux would reject such a name with \texttt{ENAMETOOLONG} instead of truncating it silently.
+\shot{fig3_2_truncation.png}{Names truncated to 14 characters}
 
-int main(int argc, char *argv[]) {
-  struct stat st;
-  for(int i = 1; i < argc; i++){
-    if(stat(argv[i], &st) < 0){
-      fprintf(2, "mystat: cannot stat %s\n", argv[i]);
-      continue;
-    }
-    printf("%s: %s, inode %d, links %d, size %ld bytes\n",
-           argv[i], typename(st.type), st.ino, st.nlink, st.size);
-  }
-  exit(0);
-}
-\end{verbatim}
+\section{The disk layout}
+\texttt{mkfs} prints the layout of the 2000-block image (Figure~3.3):
 
-\section{Observing Hard Links and Unlinking}
-\begin{verbatim}
-$ mystat README . console
-README: file, inode 2, links 1, size 2425 bytes
-.: directory, inode 1, links 2, size 1024 bytes
-console: device, inode 24, links 1, size 0 bytes
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Blocks} & \textbf{Count} & \textbf{Content} \\
+\midrule
+0 & 1 & boot block (unused by xv6) \\
+1 & 1 & superblock \\
+2--32 & 31 & log (1 header + 30 data blocks, \texttt{LOGBLOCKS}) \\
+33--45 & 13 & inodes: 200 inodes $\times$ 64 B = 12\,800 B, at 16 per block $\rightarrow \lceil 200/16 \rceil = 13$ \\
+46 & 1 & free-block bitmap (2000 bits fit in one 8192-bit block) \\
+47--1999 & 1953 & data blocks \\
+\bottomrule
+\end{tabular}
+\caption{xv6 disk layout}
+\end{table}
+\texttt{balloc: write bitmap block at sector 46} confirms the position of the bitmap. After copying \texttt{README} and all user programs, 1101 blocks were already in use.
+\shot{fig3_3_mkfs.png}{The mkfs summary of fs.img}
 
-$ ln README r2
-$ mystat README r2
-README: file, inode 2, links 2, size 2425 bytes
-r2: file, inode 2, links 2, size 2425 bytes
+\chapter{user/find.c}
 
-$ rm README
-$ mystat r2
-r2: file, inode 2, links 1, size 2425 bytes
+\section{How it works}
+\texttt{find <dir> <name> [-n]} opens the directory and checks with \texttt{fstat()} that it really is one. It then reads it one \texttt{struct dirent} at a time and skips free slots (\texttt{inum == 0}). The 14-byte name is copied into a buffer one byte longer so that it can be terminated even when it is exactly 14 characters long. It skips \texttt{.} and \texttt{..}; otherwise the recursion would loop forever, going down into itself or back up into its parent. For each entry it builds \texttt{path/name}, prints it if the name matches (with the inode number when \texttt{-n} is given), and recurses into subdirectories. Every opened directory is closed before returning, so deep trees do not exhaust the 16 file descriptors a process has (\texttt{NOFILE}). It also refuses paths that would overflow its 512-byte buffer (Figure~4.1).
+\shot{fig4_1_find_c.png}{The search function of user/find.c}
+\shot{fig4_0_main.png}{Argument handling in main()}
 
-$ cat r2 | wc
-48 334 2425
-\end{verbatim}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig2_mystat_links.jpg}
-\caption{mystat output, link counter increment, and unlinking.}
-\label{fig:l6_mystat_links}
-\end{figure}
-
-When \texttt{ln README r2} executes, the kernel creates a second directory entry referencing inode 2, incrementing \texttt{nlink} to 2. Inode number, size, and content remain identical. When \texttt{README} is removed, \texttt{sys\_unlink()} removes only the directory entry and decrements \texttt{nlink} back to 1. Inode 2 and its data blocks remain intact, allowing \texttt{r2} to read the original contents.
-
-\section{Kernel Unlinking and Block Deallocation Tracing}
-In \texttt{kernel/sysfile.c}, the hard link count is decremented at line 230:
-\begin{verbatim}
-ip->nlink--;
-iupdate(ip);
-\end{verbatim}
-Crucially, \texttt{sys\_unlink()} does not free disk blocks. Block freeing is deferred to \texttt{iput()} in \texttt{kernel/fs.c} (line 342):
-\begin{verbatim}
-if(ip->ref == 1 && ip->valid && ip->nlink == 0){
-  itrunc(ip);
-  ip->type = 0;
-  iupdate(ip);
-  ip->valid = 0;
-}
-\end{verbatim}
-Physical data blocks are freed only when the in-memory reference count drops to 1 and the on-disk link count drops to 0. At that point, \texttt{itrunc()} iterates across all direct and indirect block addresses, calling \texttt{bfree()} to return blocks to the free bitmap.
-
-\section{Minimalist On-Disk Inode Structure}
-The on-disk inode structure (\texttt{struct dinode} in \texttt{kernel/fs.h}) illustrates xv6's minimalist design:
-\begin{verbatim}
-struct dinode {
-  short type;              // File type
-  short major;             // Major device number (T_DEVICE only)
-  short minor;             // Minor device number (T_DEVICE only)
-  short nlink;             // Hard link counter
-  uint size;               // File size in bytes
-  uint addrs[NDIRECT+1];   // Block addresses (12 direct + 1 indirect)
-};
-\end{verbatim}
-xv6 omits permission bits, UID, GID, timestamps, and symbolic link paths.
-
-\chapter{Filesystem Limits and Disk Layout}
-
-\section{Structural Constants in kernel/fs.h}
-\begin{verbatim}
-$ grep -n "define BSIZE\|define NDIRECT\|define NINDIRECT\|define DIRSIZ" kernel/fs.h
-6:#define BSIZE 1024  // block size
-27:#define NDIRECT 12
-28:#define NINDIRECT (BSIZE / sizeof(uint))
-54:#define DIRSIZ 14
-\end{verbatim}
-
-\section{Name Truncation}
-Creating a directory whose name exceeds 14 characters reveals truncation:
-\begin{verbatim}
-$ mkdir averyveryverylongname
-$ ls
-averyveryveryl 1 26 32
-\end{verbatim}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig3_limits_truncation.jpg}
-\caption{Measuring constants, disk layout, and 14-byte truncation.}
-\label{fig:l6_limits}
-\end{figure}
-
-Because \texttt{DIRSIZ = 14}, names are truncated to 14 characters within the directory entry buffer.
-
-\section{Maximum File Capacity Calculation}
-\begin{itemize}
-\item Block size: $\text{BSIZE} = 1024\text{ bytes}$;
-\item Direct blocks: $\text{NDIRECT} = 12$ blocks ($12 \times 1024 = 12,288\text{ bytes}$);
-\item Indirect blocks: $\text{NINDIRECT} = \frac{\text{BSIZE}}{\text{sizeof}(\text{uint})} = \frac{1024}{4} = 256$ block pointers ($256 \times 1024 = 262,144\text{ bytes}$);
-\item Total blocks: $12 + 256 = 268$ blocks;
-\item Maximum file size: $268 \times 1024\text{ bytes} = 274,432\text{ bytes} \approx 268\text{ KiB}$;
-\end{itemize}
-
-\section{Disk Layout from mkfs}
-\begin{verbatim}
-nmeta 47 (boot, super, log blocks 31, inode blocks 13, bitmap blocks 1) blocks 1953 total 2000
-\end{verbatim}
-The virtual disk spans 2000 blocks (2 MiB). Metadata consumes 47 blocks (block 0 boot, block 1 super, blocks 2--31 log, blocks 32--44 inodes, block 45 bitmap). The remaining 1953 blocks are allocated for user data.
-
-\chapter{Recursive Search: user/find.c and Stretch}
-
-\section{Implementation Architecture}
-The \texttt{find} utility opens directory file descriptors, scans \texttt{struct dirent} entries, skips `.` and `..` to prevent cycles, formats paths in a local buffer, and recurses into subdirectories while strictly closing descriptors:
-
-\begin{verbatim}
-#include "kernel/types.h"
-#include "kernel/stat.h"
-#include "user/user.h"
-#include "kernel/fs.h"
-#include "kernel/fcntl.h"
-
-static int show_ino = 0;
-
-void find(char *path, char *target) {
-  char buf[512], *p;
-  int fd;
-  struct dirent de;
-  struct stat st;
-
-  if((fd = open(path, O_RDONLY)) < 0) return;
-  if(fstat(fd, &st) < 0 || st.type != T_DIR) { close(fd); return; }
-
-  strcpy(buf, path);
-  p = buf + strlen(buf);
-  *p++ = '/';
-
-  while(read(fd, &de, sizeof(de)) == sizeof(de)){
-    char name[DIRSIZ + 1];
-    if(de.inum == 0) continue;
-    memmove(name, de.name, DIRSIZ);
-    name[DIRSIZ] = 0;
-    if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-
-    strcpy(p, name);
-    if(stat(buf, &st) < 0) continue;
-    if(strcmp(name, target) == 0){
-      if(show_ino) printf("%s %d\n", buf, st.ino);
-      else printf("%s\n", buf);
-    }
-    if(st.type == T_DIR) find(buf, target);
-  }
-  close(fd);
-}
-\end{verbatim}
-
-\section{Validation and Inode Identity Verification}
-\begin{verbatim}
-$ mkdir a
-$ mkdir a/b
-$ echo x > a/b/r2
-$ echo y > a/r2
-$ ln cat r2
-
-$ find . r2
-./r2
-./a/b/r2
-./a/r2
-
-$ find a b
-a/b
-
-$ find . r2 -n
-./r2 3
-./a/b/r2 26
-./a/r2 27
-
-$ mystat cat
-cat: file, inode 3, links 2, size 35160 bytes
-\end{verbatim}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig4_find_and_stretch.jpg}
-\caption{find output and -n inode comparison.}
-\label{fig:l6_find_stretch}
-\end{figure}
-
-The saved stretch transcript reports that \texttt{./r2} (inode 3) and \texttt{cat} (inode 3, link count 2) share an inode. It also reports distinct inode numbers for \texttt{a/b/r2} (26) and \texttt{a/r2} (27); those values are specific to the recorded image.
+\section{Testing find}
+In the tree \texttt{/r2}, \texttt{/a/r2} and \texttt{/a/b/r2}, \texttt{find . r2} finds all three, and \texttt{find a b} finds the directory \texttt{a/b} (Figure~4.2). With \texttt{-n}, the three files named \texttt{r2} have three different inodes (32, 33, 2): the same name does not mean the same file. In the opposite case, after \texttt{ln cat c2}, \texttt{find . c2 -n} reports inode 3, and \texttt{mystat cat c2} confirms that \texttt{cat} and \texttt{c2} are one inode with 2 links. A missing argument prints the usage line, and a missing directory prints \texttt{find: cannot open nosuch}.
+\shot{fig4_2_find.png}{find results, inode numbers with -n, and error handling}
 
 \utmconclusions
-Source analysis and execution traces demonstrate how directory names map to inodes, how link counts govern inode lifetime, and how xv6 separates unlinking from block reclamation. The terminal figures and command output verify recursive directory traversal and inode identity across links.
+The xv6 file system made the Lab~5 rules visible in the source. A directory is literally an array of 16-byte \texttt{(inum, name)} records, and \texttt{ls}, \texttt{mystat} and \texttt{find} only read those records and call \texttt{stat()}. The life of a file is controlled by two counters. \texttt{nlink} counts names on disk and is decremented by \texttt{sys\_unlink()}; \texttt{ref} counts in-memory users. Blocks are freed by \texttt{itrunc()} in \texttt{iput()} only when both reach zero, which is why \texttt{r2} kept the full 2441 bytes after \texttt{README} was removed.
 
-\appendix
-\chapter{Fresh xv6 Execution, 23 October 2026}
-\section{Environment and scope}
-The captured session is preserved in \texttt{execution-2026-10-23.txt}. It ran in Ubuntu 24.04 WSL2 on the WSL2 Linux 6.18.33.2 kernel, using host GCC 13.3.0, GNU make 4.3, Perl 5.38.2, RISC-V GCC 13.2.0, and QEMU 8.2.2. The Lab 6 helper built a disposable overlay under \texttt{/tmp}. The linker emitted RWX-segment warnings for the kernel and \texttt{user/\_forktest}; QEMU/make exited with status 0, then the overlay was removed.
+The limits follow directly from a few constants: 1~KiB blocks, 12 direct pointers plus one indirect block give a maximum file of 268~KiB, \texttt{DIRSIZ} = 14 silently truncates longer names, and the 2000-block disk spends 47 blocks on boot, superblock, log, inodes and bitmap. The comparison with Lab~5 shows what a production file system adds on top of the same design: owners and permissions, timestamps, symbolic links, larger and multi-level indirect blocks (extents in ext4), and errors instead of silent truncation. The \texttt{find} program needed no kernel support at all: recursion over \texttt{open}, \texttt{read} and \texttt{stat} was enough, as long as it skips \texttt{.} and \texttt{..} and closes every descriptor.
 
-\section{Captured commands and output}
-\begingroup
-\footnotesize
-\begin{verbatim}
-$ mystat README . console
-README: file, inode 2, links 1, size 2473 bytes
-.: directory, inode 1, links 1, size 1024 bytes
-console: device, inode 26, links 1, size 0 bytes
-$ ln README r2
-$ mystat README r2
-README: file, inode 2, links 2, size 2473 bytes
-r2: file, inode 2, links 2, size 2473 bytes
-$ rm README
-$ mystat r2
-r2: file, inode 2, links 1, size 2473 bytes
-$ mkdir a
-$ mkdir a/b
-$ echo x > a/b/r2
-$ echo y > a/r2
-$ find a r2
-a/b/r2
-a/r2
-$ find a r2 -n
-a/b/r2 28
-a/r2 29
-\end{verbatim}
-\endgroup
+\begin{thebibliography}{9}
+\bibitem{cox} Cox, R., Kaashoek, M. F., \& Morris, R. \textit{xv6: a simple, Unix-like teaching operating system} (RISC-V edition). MIT, 2024. Chapter 8: File system.
+\bibitem{xv6src} \texttt{mit-pdos/xv6-riscv}: \texttt{kernel/fs.h}, \texttt{kernel/fs.c}, \texttt{kernel/sysfile.c}, \texttt{mkfs/mkfs.c}. https://github.com/mit-pdos/xv6-riscv
+\bibitem{tlpi} Kerrisk, M. (2010). \textit{The Linux Programming Interface}. No Starch Press. Ch.~14 and 18.
+\end{thebibliography}
 
-This image shows README and r2 sharing inode 2, with the link count falling from two to one after unlink. find recursed through a/b and reported the two r2 inodes as 28 and 29. These numbers identify this image only; the run did not repeat the cat hard link or filesystem-limit observations.
 \end{document}

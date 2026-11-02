@@ -1,6 +1,6 @@
 \documentclass{assets/utmreport}
 
-\usepackage{booktabs,amssymb,float,graphicx,listings}
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
 
 \hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
 
@@ -12,333 +12,169 @@
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
 \department{Department of Software Engineering}
 \studyprogramme{Software Engineering Study Programme}
-\documenttype{Laboratory report}
-\reporttitle{Operating Systems Laboratory 5}
+\documenttype{Report on laboratory work no. 5}
+\reporttitle{Operating Systems}
 \reportsubtitle{The File System with Your Own Hands}
 \student{Lucian-Adrian Gavril}{FAF-241}
 \supervisor{Reițman Patricia}{univ. assist.}
 \cityyear{Chișinău}{2026}
 
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+
 \begin{document}
+\sloppy
 \makeutmreporttitlepage
-\tableofcontents
+{\small\tableofcontents}
 \clearpage
 
-\begin{utmabstract}[Abstract]
-This report records Linux VFS investigations conducted on Ubuntu 24.04 LTS (Linux 6.6.87.2, x86\_64) by an unprivileged UID 1000 account. Topics include namespace organization, inode metadata and directory entries, hard and symbolic links, sparse-file allocation, directory permissions, setuid, procfs, and four stretch exercises. All terminal outputs and measurements represent verified system executions.
-\utmkeywords{operating systems, linux, virtual filesystem, inodes, hard links, permissions, procfs}
-\end{utmabstract}
-
 \utmintroduction
-Filesystems translate byte-oriented storage devices into hierarchical, human-navigable namespaces. Under the Unix philosophy, the abstraction extends beyond persistent media to expose device interfaces and kernel data structures through a common file interface.
+\textbf{Purpose of the work.} To see from the shell how Linux organizes files: the directory tree and the file types, the difference between a \emph{name} and an \emph{inode}, hard and symbolic links, how space is really allocated, how permission bits are checked, and how disks and the kernel itself appear as files.
 
-Laboratory 5 explores this architecture across four core modules and four stretch problems:
-\begin{utmenumerate}
-\item \textbf{Filesystem Tree and Types}: Distinguishing regular files, directories, character devices, block devices, and symbolic links, alongside UsrMerge namespace organization;
-\item \textbf{Inodes and Links}: Comparing directory entries with underlying inodes, hard links, dangling symbolic links, directory link count mechanics, and sparse file allocation;
-\item \textbf{Permission Semantics}: Evaluating octal modes, the bitwise \texttt{umask} calculation, directory read versus execute semantics, setuid privilege elevation, and the sticky bit;
-\item \textbf{Disks and Kernel Pseudo-Files}: Mapping block devices via \texttt{lsblk} and \texttt{df}, extracting hardware topology from \texttt{/proc/cpuinfo} and \texttt{/proc/meminfo}, and analyzing dynamic process resolution through \texttt{/proc/self};
-\item \textbf{Advanced System Inspections}: Header magic byte parsing, setuid auditing, unlinking open file descriptors, and measuring ext4 loopback inode table sizing;
-\end{utmenumerate}
+\textbf{Environment.} Debian GNU/Linux 13, kernel 6.12, GNU coreutils 9.7, ordinary user \texttt{dev1} (UID 1000), working directory \texttt{\~{}/os-lab5} on an ext4 root filesystem (\texttt{/dev/sda2}). Every terminal figure is the real output of the commands shown in it.
 
-\chapter{The Tree and File Types}
+\chapter{The tree and the file types}
 
-\section{System Root and File Type Classification}
-In Unix-like systems, the first character of the \texttt{ls -l} output denotes the inode type. Inspecting \texttt{/bin}, \texttt{/dev/null}, \texttt{/etc}, \texttt{/etc/passwd}, and \texttt{/tmp} reveals five distinct filesystem abstractions:
-
-\begin{verbatim}
-$ ls -ld /etc /etc/passwd /bin /dev/null /tmp
-lrwxrwxrwx   1 root root    7 Apr 22  2024 /bin -> usr/bin
-crw-rw-rw-   1 root root 1, 3 Oct 12 15:33 /dev/null
-drwxr-xr-x 107 root root 4096 Oct 12 15:38 /etc
--rw-r--r--   1 root root 2430 Oct 12 15:38 /etc/passwd
-drwxrwxrwt  10 root root 4096 Oct 12 15:38 /tmp
-\end{verbatim}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig1_tree_and_types.jpg}
-\caption{Inspecting system root, device nodes, and file types.}
-\label{fig:l5_tree_types}
-\end{figure}
+\section{Five kinds of file}
+The first character of \texttt{ls -l} is the file type stored in the inode; \texttt{file} reports the same type in words (Figure~1.1).
 
 \begin{table}[H]
-\centering
-\caption{File types reported in the saved 12 October run}
-\begin{tabular}{lcll}
+\centering\small
+\begin{tabular}{llll}
 \toprule
-\textbf{Path} & \textbf{Prefix} & \textbf{Filesystem Type} & \textbf{Semantic Role} \\
+\textbf{Path} & \textbf{Type char} & \textbf{Type} & \textbf{Note} \\
 \midrule
-\texttt{/bin} & \texttt{l} & Symbolic Link & Points to \texttt{usr/bin} (UsrMerge) \\
-\texttt{/dev/null} & \texttt{c} & Character Device & Byte stream device (major 1, minor 3) \\
-\texttt{/etc} & \texttt{d} & Directory & System-wide configuration table \\
-\texttt{/etc/passwd} & \texttt{-} & Regular File & Plain text user database \\
-\texttt{/tmp} & \texttt{d} & Directory (Sticky) & Shared workspace with mode 1777 \\
+\texttt{/bin} & \texttt{l} & symbolic link & points to \texttt{usr/bin}; size 7 = length of ``usr/bin'' \\
+\texttt{/dev/null} & \texttt{c} & character device & major 1, minor 3; no size, only device numbers \\
+\texttt{/etc} & \texttt{d} & directory & 122 links: 2 + one per subdirectory \\
+\texttt{/etc/passwd} & \texttt{-} & regular file & 2014 bytes of text, mode 644 \\
+\texttt{/tmp} & \texttt{d} (\texttt{t}) & directory, sticky & mode 1777 \\
 \bottomrule
 \end{tabular}
+\caption{File types of the inspected paths}
+\end{table}
+\shot{fig1_1_types.png}{File types with ls -ld and file}
+
+\section{/bin is a link: the merged /usr}
+\texttt{/bin}, \texttt{/sbin} and \texttt{/lib} are symbolic links into \texttt{/usr}, so \texttt{/bin/ls} and \texttt{/usr/bin/ls} have the same inode number, 2658541: they are one file reached by two paths (Figure~1.2). Debian merged the old ``essential'' \texttt{/bin} into \texttt{/usr/bin} because the split no longer matched how systems boot.
+\shot{fig1_2_usrmerge.png}{The /usr merge: /bin, /sbin and /lib are links}
+
+\section{Devices are files}
+In \texttt{/dev}, the size column is replaced by \emph{major, minor}: the major number selects the driver and the minor number selects the device. \texttt{c} devices (\texttt{null} 1,3, \texttt{zero} 1,5, \texttt{random} 1,8, \texttt{tty} 5,0) are byte streams. \texttt{b} devices (the disk \texttt{sda} 8,0 and its partition \texttt{sda2} 8,2) are block-addressable. Writing to \texttt{/dev/null} discards the data; reading \texttt{/dev/zero} returns zero bytes (Figure~1.3).
+\shot{fig1_3_dev.png}{Character and block devices in /dev}
+
+\section{Where is the space?}
+\texttt{/usr} uses 9.9~GiB and \texttt{/var/log} 150~MiB, about 66 times less (Figure~1.4). \texttt{/usr} holds the read-only installed software; \texttt{/var/log} holds only variable data, and it stays small because \texttt{journald} and \texttt{logrotate} cap and rotate the logs.
+\shot{fig1_4_du.png}{Disk usage of /var/log and /usr}
+
+\chapter{Inodes and links}
+
+\section{A name is not the file}
+\texttt{stat} shows everything the inode stores: size 6, 8 blocks of 512~B, inode 7481761, 1 link, mode 0644, owner and the four timestamps (Figure~2.1). The name \texttt{notes.txt} is not among them; it exists only as an entry (name $\rightarrow$ inode) in the directory \texttt{\~{}/os-lab5}.
+\shot{fig2_1_stat.png}{The inode of notes.txt}
+
+\section{Hard links}
+\texttt{ln notes.txt hard.txt} adds a second name for the same inode: both names show 7481761 and the link count rises to 2. \texttt{rm notes.txt} calls \texttt{unlink()}, which removes one name and decrements the count to 1. The data is untouched, so \texttt{cat hard.txt} still prints \texttt{hello} (Figure~2.2). The kernel frees the inode only when the link count is 0 \emph{and} no process has the file open.
+\shot{fig2_2_hardlink.png}{A hard link survives the removal of the original name}
+
+\section{Symbolic links}
+A symbolic link is a separate inode (7481762) whose content is a path. Its size is 8, the length of \texttt{hard.txt}. While the target exists, \texttt{cat soft.txt} follows it. After \texttt{rm hard.txt} the link dangles: \texttt{No such file or directory}, although \texttt{ls} and \texttt{readlink} still show the stored path (Figure~2.3).
+\shot{fig2_3_symlink.png}{A symbolic link and how it dangles}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{p{4.2cm}p{5.2cm}p{5.2cm}}
+\toprule
+ & \textbf{Hard link} & \textbf{Symbolic link} \\
+\midrule
+What it is & another name for the same inode & a separate inode holding a path \\
+Inode number & same as the target & its own \\
+Target removed & data stays, file still readable & link dangles \\
+Across filesystems / to a directory & no / no & yes / yes \\
+\bottomrule
+\end{tabular}
+\caption{Hard link versus symbolic link}
 \end{table}
 
-\section{The UsrMerge Architecture}
-On this system, \texttt{/bin} is a symbolic link pointing to \texttt{usr/bin}. Modern Debian and Ubuntu distributions implement UsrMerge to unify all system binaries under \texttt{/usr/bin}. This eliminates historical distinctions between essential single-user recovery binaries in \texttt{/bin} and multi-user packages in \texttt{/usr/bin}.
+\section{Link count of a directory}
+A new directory has 2 links: its name in the parent and its own \texttt{.}. Each subdirectory adds one more through its \texttt{..}, so after \texttt{mkdir d/x d/y} the count is 4. A regular file inside does not change it (Figure~2.4). In general, links of a directory = 2 + the number of subdirectories, which is how \texttt{/etc} reaches 122.
+\shot{fig2_4_dirlinks.png}{Link count of a directory}
 
-\section{Device Files in /dev}
-Device files in \texttt{/dev} do not occupy disk data blocks; their inodes store major and minor device identifiers:
-\begin{itemize}
-\item \textbf{Character Device}: \texttt{/dev/null} (major 1, minor 3) streams bytes directly without intermediate caching;
-\item \textbf{Block Device}: \texttt{/dev/sda} (major 8, minor 0) and \texttt{/dev/sdd} (major 8, minor 48) support random block-level transfers backed by the page cache;
-\end{itemize}
+\section{Size versus allocated space}
+\texttt{one.txt} contains 2 bytes (\texttt{x} and a newline) but occupies 4.0~KiB, i.e.\ 8 sectors of 512~B: ext4 allocates whole 4~KiB blocks. \texttt{truncate -s 1G big.img} only writes the size into the inode. \texttt{ls} reports 1.0~G, while \texttt{du} reports 0, because no block was allocated. Reading the file returns zeros generated on the fly (Figure~2.5). Such \emph{sparse} files are how VM disk images can be ``large'' and still cost nothing until they are written.
+\shot{fig2_5_sparse.png}{Logical size against allocated blocks}
 
-\section{Filesystem Footprint: /var/log vs /usr}
-Running disk utilization measurements reveals:
-\begin{verbatim}
-$ du -sh /var/log 2>/dev/null ; du -sh /usr 2>/dev/null
-422M    /var/log
-7.4G    /usr
-\end{verbatim}
-The \texttt{/usr} hierarchy occupies 7.4 GB, which is roughly 7.0 GB larger ($\approx 17.5 \times$) than \texttt{/var/log} (422 MB). This disparity is expected because \texttt{/usr} houses shared libraries, system utilities, compilers, headers, and documentation, whereas \texttt{/var/log} only stores log text.
+\chapter{Permissions}
 
-\chapter{Inodes, Links, and Space Allocation}
+\section{Typical modes}
+\begin{table}[H]
+\centering\small
+\begin{tabular}{llll}
+\toprule
+\textbf{Octal} & \textbf{Symbolic} & \textbf{Typical use} & \textbf{Observed on} \\
+\midrule
+600 & \texttt{rw-------} & private file (keys) & \texttt{s.txt} after \texttt{chmod 600} \\
+640 & \texttt{rw-r-----} & secret readable by a group & \texttt{/etc/shadow} (group \texttt{shadow}) \\
+644 & \texttt{rw-r--r--} & public data & \texttt{/etc/passwd} \\
+700 & \texttt{rwx------} & private directory & \texttt{\~{}/.ssh} \\
+755 & \texttt{rwxr-xr-x} & program, public directory & \texttt{/usr/bin/ls} \\
+\bottomrule
+\end{tabular}
+\caption{Common permission modes}
+\end{table}
+After \texttt{chmod 000} even the owner gets \texttt{Permission denied} (Figure~3.1). The kernel picks \emph{one} class: owner if the UIDs match, otherwise group, otherwise others. It checks only those bits, and the owner's bits are now 0. Ownership gives only the right to run \texttt{chmod}, which is how the file was made readable again. Only root bypasses the check.
+\shot{fig3_1_modes.png}{Typical modes, and chmod 000 locking out the owner}
 
-\section{Inode Metadata and Hard Links}
-A file's human-readable name is not stored within its inode. It exists solely as an entry in a parent directory mapping a string to an inode number. Figure \ref{fig:l5_links_concept} summarizes the relationship; its open-file-table layer is omitted.
+\section{umask}
+The umask \texttt{0022} removes write permission for group and others from every new file. Files are created from 0666 and directories from 0777: $0666 \mathbin{\&} \lnot 0022 = 0644$ and $0777 \mathbin{\&} \lnot 0022 = 0755$, exactly as \texttt{new.txt} and \texttt{newdir} show. With \texttt{umask 077} the new file is \texttt{rw-------} (Figure~3.2). Files never start with \texttt{x}, because the base mode 0666 has no execute bits.
+\shot{fig3_2_umask.png}{umask and the modes of new files}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/concept-filesystem-links.png}
-\caption{Conceptual diagram of names, inodes, and links; the open-file-table layer is omitted.}
-\label{fig:l5_links_concept}
-\end{figure}
+\section{r and x on a directory}
+A directory's content is a list of names. \texttt{r} allows reading that list; \texttt{x} allows \emph{using} the directory in a path to reach the inodes behind the names. With only \texttt{r}, \texttt{ls box} prints the name \texttt{f}, but \texttt{cat box/f} is denied. With only \texttt{x}, \texttt{ls} is denied, but \texttt{cat box/f} prints \texttt{hi} because the name is already known (Figure~3.3).
+\shot{fig3_3_dir_rx.png}{Read and execute permission on a directory}
 
-\begin{verbatim}
-$ echo hello > notes.txt
-$ stat notes.txt
-  File: notes.txt
-  Size: 6           Blocks: 8          IO Block: 4096   regular file
-Device: 8,48    Inode: 18829       Links: 1
-\end{verbatim}
+\section{setuid and the sticky bit}
+\texttt{/usr/bin/passwd} is \texttt{4755}, \texttt{rwsr-xr-x}: the \texttt{s} (setuid) makes the process run with the effective UID of the owner, root. That is why an ordinary user can change their password in \texttt{/etc/shadow}, which is \texttt{rw-r-----} and owned by root. \texttt{/tmp} is \texttt{1777}, \texttt{rwxrwxrwt}: everyone may create files, but the sticky \texttt{t} allows deleting or renaming only one's own files (Figure~3.4).
+\shot{fig3_4_setuid_sticky.png}{setuid on passwd and the sticky bit on /tmp}
 
-Creating a hard link creates a second directory entry referencing the identical inode:
-\begin{verbatim}
-$ ln notes.txt hard.txt
-$ ls -li notes.txt hard.txt
-18829 -rw-r--r-- 2 ubuntu ubuntu 6 Oct 12 15:39 hard.txt
-18829 -rw-r--r-- 2 ubuntu ubuntu 6 Oct 12 15:39 notes.txt
-$ rm notes.txt
-$ cat hard.txt
-hello
-\end{verbatim}
+\chapter{Disks and the kernel as files}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig2_inodes_and_links.jpg}
-\caption{Inode inspection, hard links, dangling symlinks, and sparse files.}
-\label{fig:l5_inodes_links}
-\end{figure}
+\section{Disks and mounts}
+The machine has one 1.8~TiB disk \texttt{sda} (8:0) with six partitions. The root filesystem is \texttt{sda2}, ext4, 121~GiB, 35\% used, mounted \texttt{rw,relatime,errors=remount-ro}: on a disk error the kernel remounts it read-only instead of corrupting it further (Figure~4.1).
+\shot{fig4_1_disks.png}{Disks, partitions and the root mount}
 
-The \texttt{rm} utility invokes \texttt{unlink()}, removing the name \texttt{notes.txt} from the directory and decrementing \texttt{i\_nlink} from 2 to 1. Because \texttt{hard.txt} still points to inode 18829 and the link counter is positive, data blocks remain on disk.
+\section{/proc}
+\texttt{/proc} is not on any disk: the kernel generates its files on every read. \texttt{/proc/cpuinfo} lists 12 logical processors (Intel Core i5-12400F, 6 cores $\times$ 2 threads), and \texttt{/proc/meminfo} reports 32\,707\,268~kB $\approx$ 31.2~GiB of RAM. \texttt{head -5 /proc/self/status} prints \texttt{Name: head}, because \texttt{/proc/self} is a link that the kernel resolves to the PID of \emph{whoever opens it}. For \texttt{ls} it pointed to 3259196, a different process from the shell, which is 3259107 (Figure~4.2).
+\shot{fig4_2_proc.png}{CPU, memory and /proc/self}
 
-\section{Symbolic Link Mechanics}
-Unlike hard links, symbolic links are distinct inodes storing the path string of their target:
-\begin{verbatim}
-$ ln -s hard.txt soft.txt
-$ ls -li hard.txt soft.txt
-18829 -rw-r--r-- 1 ubuntu ubuntu 6 Oct 12 15:39 hard.txt
-18830 lrwxrwxrwx 1 ubuntu ubuntu 8 Oct 12 15:39 soft.txt -> hard.txt
-$ rm hard.txt
-$ cat soft.txt
-cat: soft.txt: No such file or directory
-\end{verbatim}
-When \texttt{hard.txt} is removed, \texttt{soft.txt} becomes a dangling link. Opening it fails with \texttt{ENOENT}. The length of \texttt{soft.txt} is exactly 8 bytes because the path string \texttt{"hard.txt"} contains 8 characters.
+\chapter{Stretch experiments}
 
-\section{Directory Link Count Arithmetic}
-Directories have fixed link counting rules:
-\begin{verbatim}
-$ mkdir d ; ls -ld d
-drwxr-xr-x 2 ubuntu ubuntu 4096 Oct 12 15:39 d
-$ mkdir d/x d/y ; ls -ld d
-drwxr-xr-x 4 ubuntu ubuntu 4096 Oct 12 15:39 d
-\end{verbatim}
-A new directory starts with 2 links: the parent entry \texttt{d} and the self-referencing entry \texttt{d/.}. When child directories \texttt{d/x} and \texttt{d/y} are created, each child contains a \texttt{..} entry pointing back to \texttt{d}, raising the link count to 4.
+\section{Magic numbers}
+A gzip file starts with the bytes \texttt{1f 8b} (then \texttt{08} = deflate). \texttt{file} reads these bytes, not the name: \texttt{renamed.txt} is still recognized as gzip data (Figure~5.1). On Unix the extension is only a convention; the content determines the type.
+\shot{fig5_1_magic.png}{The gzip magic number and file ignoring the extension}
 
-\section{Logical Size versus Physical Allocation}
-File systems allocate storage in discrete blocks (4096 bytes in ext4):
-\begin{verbatim}
-$ echo x > one.txt ; ls -l one.txt ; du -h one.txt
--rw-r--r-- 1 ubuntu ubuntu 2 Oct 12 15:39 one.txt
-4.0K    one.txt
+\section{Setuid audit}
+13 setuid programs exist in \texttt{/usr/bin} (Figure~5.2). Each one needs root for a single, narrow task: changing account data (\texttt{passwd}, \texttt{chfn}, \texttt{chsh}, \texttt{gpasswd}, \texttt{newgrp}), switching identity (\texttt{su}, \texttt{sudo}, \texttt{pkexec}), or mounting (\texttt{mount}, \texttt{umount}, \texttt{fusermount3}, \texttt{ntfs-3g}), plus the NVIDIA module loader. Because each of them runs as root, a bug in any one is a privilege escalation, so the list should be as short as possible.
+\shot{fig5_2_setuid_audit.png}{Setuid programs in /usr/bin and /usr/sbin}
 
-$ truncate -s 1G big.img ; ls -lh big.img ; du -h big.img
--rw-r--r-- 1 ubuntu ubuntu 1.0G Oct 12 15:39 big.img
-0       big.img
-\end{verbatim}
-A 2-byte file requires one full 4 KiB filesystem block. Conversely, \texttt{truncate} creates a sparse file: it updates \texttt{i\_size} in the inode metadata to 1 GiB without writing data blocks, resulting in 0 physical blocks allocated.
+\section{Deleting an open file}
+A 50~MiB file was opened on fd 3 and then removed. \texttt{/proc/\$\$/fd/3} still points to it, marked \texttt{(deleted)}, and \texttt{df} shows no change in used space: the name is gone, but the inode is still referenced by the open descriptor. Only after \texttt{exec 3<\&-} closes it does used space drop by $41\,239\,780 - 41\,188\,580 = 51\,200$~KiB, exactly 50~MiB (Figure~5.3). This is why deleting a large log that a running service still writes does not free disk space.
+\shot{fig5_3_unlink_open.png}{Space is freed only when the last descriptor is closed}
 
-\chapter{Permissions and Access Control}
-
-\section{Octal Modes and Evaluation Semantics}
-File permissions represent three 3-bit masks for User, Group, and Others:
-\begin{itemize}
-\item \texttt{600} (\texttt{rw-------}): Private SSH keys (\texttt{\~{}/.ssh/id\_rsa});
-\item \texttt{644} (\texttt{rw-r--r--}): Web assets, documentation, \texttt{/etc/passwd};
-\item \texttt{755} (\texttt{rwxr-xr-x}): Executables (\texttt{/bin/ls}) and public directories;
-\item \texttt{700} (\texttt{rwx------}): Private directories (\texttt{\~{}/.ssh});
-\end{itemize}
-
-When setting \texttt{chmod 000 s.txt}, reading fails even for the file's owner:
-\begin{verbatim}
-$ chmod 000 s.txt ; cat s.txt
-cat: s.txt: Permission denied
-\end{verbatim}
-The kernel checks whether \texttt{current\_euid == inode->i\_uid}. Since it matches, only owner bits are evaluated. Because owner bits are \texttt{0}, access is denied immediately. Ownership provides the authority to change mode bits with \texttt{chmod()}, not an automatic read bypass.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig3_permissions.jpg}
-\caption{Permission evaluation, umask verification, and directory traversal.}
-\label{fig:l5_permissions}
-\end{figure}
-
-\section{The umask Calculation}
-The observed \texttt{umask} is \texttt{0022}:
-\begin{verbatim}
-$ umask ; touch new.txt ; mkdir newdir ; ls -ld new.txt newdir
-0022
--rw-r--r-- 1 ubuntu ubuntu    0 Oct 12 15:39 new.txt
-drwxr-xr-x 2 ubuntu ubuntu 4096 Oct 12 15:39 newdir
-\end{verbatim}
-Files start from base mode \texttt{0666}: $0666 \ \& \ \sim 0022 = 0644$ (\texttt{rw-r--r--}). Directories start from base mode \texttt{0777}: $0777 \ \& \ \sim 0022 = 0755$ (\texttt{rwxr-xr-x}).
-
-\section{Directory Read versus Execute Permissions}
-The \texttt{box} directory experiment demonstrates the separation between listing and traversing:
-\begin{verbatim}
-# Read-only directory
-$ chmod u=r,go= box ; ls box ; cat box/f
-f
-cat: box/f: Permission denied
-
-# Execute-only directory
-$ chmod u=x,go= box ; ls box ; cat box/f
-ls: cannot open directory 'box': Permission denied
-hi
-\end{verbatim}
-Read permission (\texttt{r}) allows reading the directory table, permitting \texttt{ls} to show the name \texttt{f}. However, traversing into the directory requires execute permission (\texttt{x}). Without \texttt{x}, path resolution fails. With execute-only permission (\texttt{x}), directory listing fails, but accessing known files directly succeeds.
-
-\section{Setuid and the Sticky Bit}
-\begin{verbatim}
-$ ls -l /usr/bin/passwd ; ls -ld /tmp
--rwsr-xr-x 1 root root 64152 May 30  2024 /usr/bin/passwd
-drwxrwxrwt 4 root root  4096 Oct 12 15:39 /tmp
-\end{verbatim}
-The \texttt{s} in \texttt{/usr/bin/passwd} denotes setuid. When executed, the process assumes the effective UID of the file owner (\texttt{root}). This allows \texttt{passwd} to modify \texttt{/etc/shadow}, which normal users cannot write to. The \texttt{t} in \texttt{/tmp} represents the sticky bit: in a shared world-writable directory, users may only delete or rename files they own.
-
-\chapter{Disks, Topology, and Kernel Pseudo-Files}
-
-\section{Disk Layout and Root Mount}
-\begin{verbatim}
-$ lsblk
-NAME MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
-sdc    8:32   0     5G  0 disk [SWAP]
-sdd    8:48   0     1T  0 disk /
-
-$ df -h
-Filesystem      Size  Used Avail Use% Mounted on
-/dev/sdd       1007G  4.2G  952G   1% /
-
-$ mount | grep " / "
-/dev/sdd on / type ext4 (rw,relatime,discard,errors=remount-ro,data=ordered)
-\end{verbatim}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig4_disks_and_proc.jpg}
-\caption{Disk topology, mount attributes, and procfs inspection.}
-\label{fig:l5_disks_proc}
-\end{figure}
-
-The root filesystem resides on \texttt{/dev/sdd}, a 1 TB virtual SCSI disk formatted with ext4. It has 4.2 GB allocated out of 1007 GB (1\% utilization). Swap is allocated on \texttt{/dev/sdc} (5 GB).
-
-\section{Hardware Introspection via /proc}
-\begin{verbatim}
-$ grep -c processor /proc/cpuinfo
-12
-$ head -3 /proc/meminfo
-MemTotal:       20323532 kB
-MemFree:        17916984 kB
-MemAvailable:   19695772 kB
-\end{verbatim}
-The host exposes 12 logical CPU cores and 20,323,532 kB ($\approx 19.38$ GiB) of total RAM.
-
-\section{Self Process Resolution in /proc/self}
-\begin{verbatim}
-$ head -5 /proc/self/status
-Name:   head
-Umask:  0022
-State:  R (running)
-\end{verbatim}
-The reported process name is \texttt{head}. In Linux, \texttt{/proc/self} is a dynamic symlink that resolves to the PID of the accessing process. Because \texttt{head} opens \texttt{/proc/self/status}, the kernel reports the status of \texttt{head}.
-
-\chapter{Stretch Experiments}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{assets/fig5_stretch.jpg}
-\caption{Magic bytes, unlinking open file descriptors, and ext4 loopback mount.}
-\label{fig:l5_stretch}
-\end{figure}
-
-\section{(a) Magic Number Header Inspection}
-\begin{verbatim}
-$ gzip -c /etc/passwd > notes.txt
-$ xxd notes.txt | head -1
-00000000: 1f8b 0808 d9d4 cc6a 0003 7061 7373 7764  .......j..passwd
-\end{verbatim}
-The first two bytes, \texttt{0x1f 0x8b}, are the gzip magic number per RFC 1952. The \texttt{file} utility uses these bytes to identify the file type regardless of filename extension.
-
-\section{(b) Setuid Binary Audit}
-A system scan reveals essential setuid binaries:
-\begin{verbatim}
-/usr/bin/passwd, /usr/bin/su, /usr/bin/sudo, /usr/bin/mount, /usr/bin/umount,
-/usr/lib/polkit-1/polkit-agent-helper-1, /usr/lib/openssh/ssh-keysign
-\end{verbatim}
-
-\section{(c) Unlinking an Open File Descriptor}
-\begin{verbatim}
-$ exec 3< bigfile ; rm bigfile
-$ ls -l /proc/$$/fd
-lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:40 3 -> /home/ubuntu/os-lab5/bigfile (deleted)
-$ exec 3<&-
-\end{verbatim}
-The link target indicates \texttt{(deleted)}. The directory entry is removed, but the inode and data blocks remain allocated until the last open descriptor is closed via \texttt{exec 3<\&-}.
-
-\section{(d) Loopback ext4 Inode Allocation}
-\begin{verbatim}
-$ truncate -s 64M disk.img ; mkfs.ext4 -F disk.img
-Creating filesystem with 16384 4k blocks and 16384 inodes
-$ sudo mount -o loop disk.img /mnt ; df -i /mnt
-Filesystem     Inodes IUsed IFree IUse% Mounted on
-/dev/loop0      16384    11 16373    1% /mnt
-\end{verbatim}
-Formatting a 64 MiB disk image created exactly 16,384 inodes (one inode per 4 KiB block).
+\section{A filesystem in a file}
+\texttt{mkfs.ext4} formatted a 64~MiB sparse file, and it was mounted through a loop device (\texttt{/dev/loop0}). \texttt{df -i} shows 16\,384 inodes, 12 already used by the root directory, \texttt{lost+found} and reserved inodes. \texttt{dumpe2fs} explains the number: for such a small filesystem mke2fs chooses 1~KiB blocks (65\,536 blocks) and one 256-byte inode per 4~KiB of space, $64~\text{MiB} / 4~\text{KiB} = 16\,384$. The inode count is fixed at format time, so a disk can be ``full'' of tiny files while blocks are still free (Figure~5.4).
+\shot{fig5_4_loop_ext4.png}{An ext4 filesystem in a 64 MiB file, mounted through a loop device}
 
 \utmconclusions
-The command transcripts and source analysis demonstrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The terminal figures and recorded measurements verify these properties across standard and extended system operations.
+The central idea of the lab is the separation between \emph{names} and \emph{inodes}. A directory is only a table of (name, inode number) pairs, and all the real information (type, size, owner, mode, times, block addresses) lives in the inode. This one fact explains all the experiments. Hard links are just more names for the same inode, so data survives \texttt{rm} until the link count and the open count both reach zero (seen both with \texttt{hard.txt} and with the deleted 50~MiB file). A directory's link count is $2 +$ its subdirectories because of \texttt{.} and \texttt{..}. A symbolic link is a small separate file with a path and can dangle.
 
-\appendix
-\chapter{Focused Demonstration, 23 October 2026}
-\section{Environment and scope}
-The captured execution record is \texttt{execution-2026-10-23.txt}. It records a verified Ubuntu 24.04.4 user-space run on the Linux 6.18 kernel. The tests ran in an ext4 temporary directory under \texttt{/tmp} using Bash 5.2.21, GNU coreutils 9.4, and Python 3.12.3. They covered hard links, symbolic-link metadata, reading through an open descriptor after unlink, and sparse allocation.
+The size of a file and the space it uses are independent quantities: 2 bytes cost 4~KiB, and a 1~GiB sparse file costs nothing. Permissions are checked against exactly one class, which is why \texttt{chmod 000} locks out even the owner. On a directory, \texttt{r} and \texttt{x} are two different rights (listing the names and passing through them). setuid and the sticky bit are the controlled exceptions that make passwords and \texttt{/tmp} work safely.
 
-\section{Selected captured output}
-\begin{verbatim}
-name=target.txt type=regular file inode=105838 links=2 size=10 bytes
-name=hardlink.txt type=regular file inode=105838 links=2 size=10 bytes
-link=symlink.txt type=symbolic link inode=105839
-referent=symlink.txt type=regular file inode=105838 links=2
-hardlink after original name removed: hardlink.txt inode=105838 links=1 size=10 bytes
-name_exists=False fd_links=0 bytes_read=28 data='still readable after unlink'
-sparse=sparse.bin logical_bytes=1048576 allocated_512_byte_blocks=0 block_size=512
-1048576 sparse.bin
-\end{verbatim}
+Finally, ``everything is a file'' proved literal: disks are block devices with major and minor numbers, the kernel publishes its state through \texttt{/proc}, and a whole ext4 filesystem fit inside a regular file and was mounted like a disk.
 
-The two hard-link names initially refer to inode 105838. Removing \texttt{target.txt} leaves \texttt{hardlink.txt} with one link. The open descriptor remains readable after unlink even though its inode reports zero directory links. In this ext4 run, the sparse file has a logical size of 1,048,576 bytes and zero allocated 512-byte accounting blocks. The 512-byte unit is the allocation-count accounting unit, not the ext4 filesystem block size; du reported zero allocated bytes. These results directly verify link lifecycles, descriptor retention, and block allocation.
+\begin{thebibliography}{9}
+\bibitem{tlpi} Kerrisk, M. (2010). \textit{The Linux Programming Interface}. No Starch Press. Ch.~14--15, 18.
+\bibitem{ext4} The Linux Kernel documentation: \textit{ext4 Data Structures and Algorithms}; \texttt{man 5 proc}; \texttt{man 8 mke2fs}.
+\bibitem{fhs} Linux Foundation. \textit{Filesystem Hierarchy Standard} 3.0.
+\end{thebibliography}
+
 \end{document}

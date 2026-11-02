@@ -8,7 +8,6 @@ main(int argc, char *argv[])
     fprintf(2, "usage: sleep <ticks>\n");
     exit(1);
   }
-  // Match the system call declared in the current course tree's user/user.h.
-  pause(atoi(argv[1]));
+  pause(atoi(argv[1]));   // was sleep() before Aug 2025
   exit(0);
 }

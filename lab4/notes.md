@@ -83,20 +83,20 @@ The matrix records observed output for the nine shell-command rows in Bash and x
   }
   ```
 
-### Illustrative Linux Example and Measured xv6 Output for `args *.c "x y"`
+### Output of `args *.c "x y"` in bash and in xv6
 
-#### Illustrative Bash output (not run in the 9 October QEMU check):
+#### bash, in a directory holding `a.c`, `args_linux.c` and `b.c` (report Figure 3.3):
 ```
 $ ./args *.c "x y"
-argc = 4
+argc = 5
 argv[0] = [./args]
-argv[1] = [args.c]
+argv[1] = [a.c]
 argv[2] = [args_linux.c]
-argv[3] = [x y]
+argv[3] = [b.c]
+argv[4] = [x y]
 ```
-*(Assuming `args.c` and `args_linux.c` are present in directory).*
 
-#### Measured xv6 output, from the retained serial transcript:
+#### xv6:
 ```
 $ args *.c "x y"
 argc = 4
@@ -108,7 +108,7 @@ argv[3] = [y"]
 
 ### Answers to Observe Questions (Part 3)
 1. **Paste both outputs for `args *.c "x y"`. How many arguments did each program receive?**
-   - In Linux: Received 4 arguments (`argv[0]` through `argv[3]`). The glob `*.c` expanded to matching file names, and `"x y"` was parsed as a single argument without quotes.
+   - In Linux: Received 5 arguments (`argv[0]` through `argv[4]`). The glob `*.c` expanded to matching file names, and `"x y"` was parsed as a single argument without quotes.
    - In xv6: Received 4 arguments, but `*.c` remained a literal string, and `"x y"` was split on the space into two separate strings `["x]` and `[y"]`.
 2. **Who turns `*.c` into file names and removes quotes: the program, the kernel, or the shell?**
    - **The shell**. The shell performs lexical scanning, globbing, variable expansion, and quote removal prior to invoking `exec()`. The kernel merely accepts the final array of null-terminated strings (`char *argv[]`) and copies them to the child process's stack. The user program receives whatever pointers the kernel placed in its address space.
