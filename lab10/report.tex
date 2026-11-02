@@ -1,0 +1,123 @@
+\documentclass{assets/utmreport}
+
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{assets/utm-logo.jpeg}
+
+\institution{Technical University of Moldova}
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+\department{Department of Software Engineering}
+\studyprogramme{Software Engineering Study Programme}
+\documenttype{Report on laboratory work no. 10}
+\reporttitle{Operating Systems}
+\reportsubtitle{Add Your Own System Call: trace}
+\student{Lucian-Adrian Gavril}{FAF-241}
+\supervisor{Reițman Patricia}{univ. assist.}
+\cityyear{Chișinău}{2026}
+
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+
+\begin{document}
+\sloppy
+\makeutmreporttitlepage
+{\small\tableofcontents}
+\clearpage
+
+\utmintroduction
+\textbf{Purpose of the work.} To change the kernel for the first time: to add a new system call, \texttt{trace}, to xv6 and follow its number, 23, from a user program through the \texttt{ecall} stub, the system-call table and the handler, down to a line in \texttt{syscall()} that prints every call the traced process makes. In Lab~9 \texttt{strace} did this from outside on Linux; here the same function is built inside the kernel. The optional part adds a second call, \texttt{sysinfo} (number 24), which copies a structure from the kernel to user memory.
+
+\textbf{Environment.} Debian GNU/Linux 13, \texttt{riscv64-linux-gnu} GCC 14, QEMU 10.0. xv6 is the current upstream \texttt{mit-pdos/xv6-riscv}, in which 22 is already \texttt{sync} and the kernel prints with \texttt{printk}, with the programs of Labs~4--6 committed first as the base. Every change is in \texttt{lab10.patch} (13 files, 140 lines added, none removed), and the modified files are in \texttt{kernel/}, \texttt{user/} and \texttt{Makefile}. Each QEMU session started from a freshly built \texttt{fs.img}. Every terminal figure is the real output of the commands shown in it.
+
+\chapter{The number and the user side}
+
+\section{Four edits and the stub}
+Part~1 gives the call a number and lets user programs ask for it (Figure~1.1): \texttt{\#define SYS\_trace 23} in \texttt{kernel/syscall.h}, the declaration \texttt{int trace(int);} in \texttt{user/user.h}, \texttt{entry("trace");} in \texttt{user/usys.pl}, and \texttt{\$U/\_trace\textbackslash} in \texttt{UPROGS}. At build time \texttt{usys.pl} generates \texttt{user/usys.S}, and the generated stub is exactly three instructions: \texttt{li a7, SYS\_trace} puts 23 in register \texttt{a7}, \texttt{ecall} traps into the kernel, \texttt{ret} returns with the result in \texttt{a0}. This is the whole user side of a system call: the C function \texttt{trace()} is only a number and a trap.
+\shot{fig1_1_user_side.png}{Part 1 edits and the generated stub in usys.S}
+
+\section{The trace program}
+\texttt{user/trace.c} is the program from the brief (Figure~1.2). It sets the mask on its own process and then calls \texttt{exec}, which replaces the program but keeps the process, so the mask stays on the command that runs next. If \texttt{exec} returns at all, it failed.
+\shot{fig1_2_trace_c.png}{user/trace.c}
+
+\section{Check 1: the number reaches the kernel}
+With only Part~1 done, the kernel has no entry for 23 and prints exactly the expected complaint (Figure~1.3): \texttt{3 trace: unknown sys call 23}, then \texttt{trace: failed} because the call returned $-1$. The message comes from the \texttt{else} branch of \texttt{syscall()}, so it proves that the program executed \texttt{ecall} with \texttt{a7} = 23 and that the kernel read the number.
+\shot{fig1_3_check1.png}{Check 1: unknown sys call 23}
+
+\chapter{The kernel side}
+
+\section{The mask, the handler and the inheritance}
+Each process keeps its own mask in \texttt{struct proc} (\texttt{int trace\_mask;} after \texttt{name}). The handler \texttt{sys\_trace} reads argument 0 with \texttt{argint} (the value the user passed in register \texttt{a0}) and stores it on the calling process. In \texttt{fork()} the child copies the parent's mask right after the name. Figure~2.1 shows these three changes as a diff against the base.
+\shot{fig2_1_proc_sysproc.png}{proc.h, sysproc.c and proc.c changes}
+
+\section{The table, the names and the print}
+In \texttt{kernel/syscall.c} the handler is declared and placed at index 23 of \texttt{syscalls[]}, which is what turns ``unknown sys call 23'' into a real call (Figure~2.2). The kernel only knows numbers, so a table \texttt{syscallnames[]} placed above \texttt{syscall()} maps each number to its name. The print is added right \emph{after} \texttt{p->trapframe->a0 = syscalls[num]();}, so the return value is already in \texttt{a0}:
+\begin{center}\texttt{if ((p->trace\_mask >> num) \& 1) printk("\%d: syscall \%s -> \%ld\textbackslash n", ...);}\end{center}
+\shot{fig2_2_syscall_c.png}{syscall.c: declaration, table entry, names and the print}
+
+\section{Build}
+The tree at the commit with Parts~1 and~2 builds with exit status 0 (Figure~2.3). The kernel is compiled with \texttt{-Wall -Werror}, so any compiler warning in the new code would have stopped the build. The only two messages are the linker's standard notice about an RWX load segment for \texttt{kernel/kernel} and \texttt{user/\_forktest}, which upstream xv6 prints in the same way before any change.
+\shot{fig2_3_build.png}{Build of Parts 1 and 2: exit 0, only the upstream linker notices}
+
+\section{Check 2: trace works}
+\texttt{trace 32 grep hello README} prints exactly the four required lines (Figure~2.4): \texttt{read -> 1023}, \texttt{965}, \texttt{453}, and \texttt{0} for the end of the file. $1023 + 965 + 453 = 2441$, and \texttt{ls README} in the same session shows the size 2441. \texttt{grep} reads with a 1024-byte buffer and keeps the unfinished last line at its start, so the reads return less than the buffer size each time.
+\shot{fig2_4_check2.png}{Check 2: read 1023, 965, 453, 0, and README is 2441 bytes}
+
+\chapter{Playing with the mask}
+
+\section{All calls}
+With all 31 bits on, \texttt{trace 2147483647 grep hello README} shows the whole life of the command (Figure~3.1): \texttt{trace -> 0} (the call that set the mask is itself traced, because the print runs after the mask is stored), \texttt{exec -> 3} (\texttt{argc} of \texttt{grep hello README}), \texttt{open -> 3} (the first free descriptor, as in Lab~9), the four reads, and \texttt{close -> 0}. \texttt{exit} is not printed: it never returns to the line after the call.
+\shot{fig3_1_all.png}{trace 2147483647: every system call of grep}
+
+\section{Only fork}
+\texttt{trace 2 usertests forkforkfork} traces only \texttt{fork} (bit 1) on a test that forks until the process table is full (Figure~3.2). Pids 6 to 11 print lines, the returned pids grow up to 67, and then \texttt{fork -> -1}: the table has \texttt{NPROC} = 64 slots. The test ends with \texttt{OK} and \texttt{ALL TESTS PASSED}.
+\shot{fig3_2_fork.png}{trace 2 usertests forkforkfork}
+
+\section{Only write}
+\texttt{trace 65536 echo hi} traces only \texttt{write} (bit 16), and the trace line appears between \texttt{hi} and the newline (Figure~3.3).
+\shot{fig3_3_write.png}{trace 65536 echo hi}
+
+\section{Only open and close}
+Mask $2^{15} + 2^{21} = 2129920$ selects \texttt{open} (15) and \texttt{close} (21) and nothing else (Figure~3.4). For \texttt{grep} it prints exactly one \texttt{open -> 3} and one \texttt{close -> 0}. In \texttt{cat README | wc} only \texttt{cat} is traced: the shell starts \texttt{trace} as the left side of the pipe, so \texttt{wc} is another child of the shell and never receives the mask.
+\shot{fig3_4_open_close.png}{trace 2129920: open and close only}
+
+\section{Edge cases}
+Mask 0 prints nothing; \texttt{trace 32} without a command prints the usage line; a missing program reaches the \texttt{fprintf} after \texttt{exec} (Figure~3.5).
+\shot{fig3_5_extra.png}{Mask 0, missing command, missing program}
+
+\section*{Observe answers}
+\textbf{1. In \texttt{trace 32 grep hello README} why do you see only read, and not open or close?}
+32 is $2^5$: only bit 5 is set, and 5 is \texttt{SYS\_read}. \texttt{syscall()} prints only when \texttt{(p->trace\_mask >> num) \& 1} is 1. For \texttt{open} (15) and \texttt{close} (21) that bit is 0, so they run normally and are not printed. Figure~3.1 shows that they are made.
+
+\textbf{2. In forkforkfork, several pids print lines. Which line of code from Part~2 makes that possible?}
+\texttt{np->trace\_mask = p->trace\_mask;} in \texttt{fork()} (\texttt{kernel/proc.c}). Without it a child would start with mask 0 from \texttt{allocproc}, and only the first process would print.
+
+\textbf{3. In \texttt{trace 65536 echo hi} the trace line is printed between ``hi'' and the newline. Why? How many times does echo call write?}
+\texttt{echo} calls \texttt{write} twice: \texttt{write(1, "hi", 2)} for the argument and \texttt{write(1, "\textbackslash n", 1)} for the end of the line. The kernel prints its trace line after each call returns, so the console receives \texttt{hi}, \texttt{68: syscall write -> 2}, the newline, then \texttt{68: syscall write -> 1}.
+
+\textbf{4. Which mask traces both open (15) and close (21), and nothing else?}
+$2^{15} + 2^{21} = 32768 + 2097152 = \mathbf{2129920}$, verified in Figure~3.4.
+
+\chapter{Optional: sysinfo}
+
+\section{Kernel side}
+\texttt{sysinfo} (number 24) fills a \texttt{struct sysinfo \{ uint64 freemem; uint64 nproc; \}} declared in the new \texttt{kernel/sysinfo.h} (Figure~4.1). Two helpers collect the values: \texttt{freemem()} in \texttt{kalloc.c} walks the free list under \texttt{kmem.lock} and multiplies the number of pages by \texttt{PGSIZE}; \texttt{nproc()} in \texttt{proc.c} counts the slots of \texttt{proc[]} whose state is not \texttt{UNUSED}. \texttt{sys\_sysinfo} takes the user address with \texttt{argaddr} and copies the structure out with \texttt{copyout}, which fails for an address the process does not own, so the call returns $-1$ instead of writing into the kernel or crashing. The name is also added to \texttt{syscallnames[]}, so \texttt{trace} can show it.
+\shot{fig4_1_sysinfo_kernel.png}{sysinfo: kernel side}
+
+\section{Build and run}
+The full tree builds with exit status 0 (Figure~4.2). The test program \texttt{user/sysinfo.c} checks the values at four moments (Figure~4.3). At start there are 3 processes (\texttt{init}, \texttt{sh}, \texttt{sysinfo}). After \texttt{fork} there are 4, and 10 pages are gone: the child's trapframe, its page-table pages and the copy of the parent's memory (kernel stacks are allocated once at boot, so they do not count). \texttt{sbrk(40960)} takes exactly 10 more pages. After \texttt{wait} the child's 10 pages come back and the count returns to 3. A pointer outside the process returns $-1$. Run under \texttt{trace 16777216} (bit 24), every call is printed with its result, and the last one is \texttt{sysinfo -> -1}.
+\shot{fig4_2_sysinfo_build.png}{Build of the full tree}
+\shot{fig4_3_sysinfo_run.png}{sysinfo at start, after fork, sbrk and wait, a bad pointer, and traced with bit 24}
+
+\utmconclusions
+A system call is a number agreed on by both sides. The user side of \texttt{trace} is three instructions that put 23 in \texttt{a7} and execute \texttt{ecall}; the kernel side is an index into \texttt{syscalls[]}. Check~1 showed that the number arrives before any kernel code exists for it, and Check~2 showed that one entry in the table is enough to connect it to a handler.
+
+Where a line is placed matters as much as what it says. The print must come after the call to see the return value, which is why \texttt{trace -> 0} itself appears with mask 2147483647 and why \texttt{exit} never does. The single line in \texttt{fork()} decides whether tracing follows a process tree: with it, pids 6 to 11 printed their forks in \texttt{forkforkfork}, while in \texttt{cat README | wc} the \texttt{wc} process, which did not descend from \texttt{trace}, was not traced.
+
+The mask is read in binary, one bit per call number: 32 is \texttt{read} alone, 65536 is \texttt{write}, 2129920 is \texttt{open} and \texttt{close}. The trace lines also expose program behaviour, such as \texttt{grep} reading README in three pieces and \texttt{echo} writing its word and its newline separately.
+
+\texttt{sysinfo} added the part \texttt{trace} does not need: returning a structure through a user pointer. \texttt{copyout} is what makes that safe, and the bad-pointer test returned $-1$ instead of corrupting memory. The page counts matched the process lifecycle exactly: 10 pages for a forked child, 10 for \texttt{sbrk(40960)}, all returned after \texttt{wait}.
+
+\end{document}
