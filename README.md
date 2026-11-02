@@ -14,6 +14,8 @@ Course repository: [Lucian-Adrian/sem5-operating-systems](https://github.com/Luc
 | 6 | xv6 filesystem and traversal | [notes.md](lab6/notes.md) · [report.md](lab6/report.md) | [PDF](lab6/report.pdf) · [Source and build](lab6/README.md) |
 | 7 | Linux fork, exec, zombies and pipes | [report.md](lab7/report.md) | [PDF](lab7/report.pdf) · [Source and commands](lab7/README.md) |
 | 8 | xv6 processes and pingpong | [notes.md](lab8/notes.md) | [PDF](lab8/report.pdf) · [Source and build](lab8/README.md) |
+| 9 | Watching system calls with strace | [report.md](lab9/report.md) | [PDF](lab9/report.pdf) · [Source and commands](lab9/README.md) |
+| 10 | xv6 system call `trace` (and `sysinfo`) | [notes.txt](lab10/notes.txt) | [PDF](lab10/report.pdf) · [Patch and build](lab10/README.md) |
 
 The [combined Labs 1–2 report](lab12/README.md) and [combined Labs 5–6 report](lab56/README.md) are supplementary. Individual folders retain the required submission files. Original handouts are included where recovered; the original Labs 5, 6 and 8 handouts are linked from their lab READMEs rather than presented as locally recovered files.
 
@@ -32,7 +34,7 @@ The formal PDFs include their editable TeX sources, UTM class, logo and figure a
 
 ## Evidence and explanations
 
-Reports distinguish recorded output from illustrative examples. Labs 7 and 8 include fourteen original terminal screenshots captured on 19 October 2026, embedded beside their answers. Process IDs, directory counts and tool versions describe that recorded environment. The older Labs 5–6 terminal panels are reconstructed illustrations, not original screenshots. Their captions identify this limitation. Fresh bounded runs on 23 October provide genuine [Linux filesystem output](lab5/execution-2026-10-23.txt) and [xv6 filesystem output](lab6/execution-2026-10-23.txt); their report appendices explain exactly what was tested. Concept illustrations explain mechanisms and are labelled separately from execution evidence.
+Every terminal figure in the reports is the real output of the commands shown in it, captured on the lab machine (Debian 13, GCC 14, QEMU 10.0). Lab 9 keeps its raw strace output in `lab9/evidence/`, and Lab 10 keeps its full kernel change as `lab10/lab10.patch`.
 
 For study, start with a lab's `teaching-note.md`. The [Labs 7–8 presentation and speaking route](lab78/README.md) connect the reports to a demonstration. The [course study guide](lab78/course-study.md) also explains commands from the earlier labs, with oral questions and changed conditions.
 

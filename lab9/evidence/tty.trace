@@ -1,0 +1,5 @@
+write(1, "open returned descriptor 3\n", 27) = 27
+write(3, "hello, kernel\n", 14)         = 14
+write(1, "write sent 14 bytes\n", 20)   = 20
+write(1, "read got 14 bytes: hello, kernel"..., 33) = 33
++++ exited with 0 +++

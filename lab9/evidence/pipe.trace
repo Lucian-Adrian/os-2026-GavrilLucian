@@ -1,0 +1,3 @@
+write(3, "hello, kernel\n", 14)         = 14
+write(1, "open returned descriptor 3\nwrite"..., 80) = 80
++++ exited with 0 +++
