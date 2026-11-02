@@ -111,6 +111,10 @@ The full tree builds with exit status 0 (Figure~4.2). The test program \texttt{u
 \shot{fig4_2_sysinfo_build.png}{Build of the full tree}
 \shot{fig4_3_sysinfo_run.png}{sysinfo at start, after fork, sbrk and wait, a bad pointer, and traced with bit 24}
 
+\chapter{The committed xv6 tree}
+The brief asks for the modified xv6 tree committed to git. The work sits in three commits on top of the Labs~4--6 base, one per stage (Figure~5.1): Parts~1--2 (\texttt{lab10 trace}, \texttt{lab10 trace.c}) and the optional \texttt{sysinfo}. The working tree is clean, and the three commits together change 13 files with 140 lines added and none removed, so no upstream line was altered. The numbers 22, 23 and 24 sit in order in \texttt{kernel/syscall.h}. The same commits are exported with \texttt{git format-patch} in \texttt{xv6-commits/}, and \texttt{lab10.patch} holds their combined diff.
+\shot{fig5_1_git.png}{The committed xv6 tree: three Lab 10 commits, clean status}
+
 \utmconclusions
 A system call is a number agreed on by both sides. The user side of \texttt{trace} is three instructions that put 23 in \texttt{a7} and execute \texttt{ecall}; the kernel side is an index into \texttt{syscalls[]}. Check~1 showed that the number arrives before any kernel code exists for it, and Check~2 showed that one entry in the table is enough to connect it to a handler.
 
