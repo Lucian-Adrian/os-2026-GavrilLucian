@@ -374,9 +374,8 @@
   \vspace{3cm}
   \hfill\begin{minipage}{0.62\textwidth}
   \raggedleft\fontsize{12pt}{14pt}\selectfont\setstretch{1.5}
-  \textbf{\UTMStudentLabel:} \UTMStudentName\\
-  \textbf{\UTMGroupLabel:} \UTMStudentGroup\\
-  \textbf{\UTMCoordinatorLabel:} \UTMSupervisorDisplay
+  \textbf{\iflanguage{english}{Done by}{A efectuat}:} st.\ gr.\ \UTMStudentGroup, \UTMStudentName\\
+  \textbf{\iflanguage{english}{Checked by}{A verificat}:} \UTMSupervisorDisplay
   \end{minipage}
   \vfill
   {\bfseries\fontsize{12pt}{14pt}\selectfont \UTMCity, \UTMYear\par}

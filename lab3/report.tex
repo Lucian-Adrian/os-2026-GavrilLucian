@@ -1,6 +1,6 @@
 \documentclass{assets/utmreport}
 
-\usepackage{booktabs,amssymb,float,graphicx}
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
 
 \hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
 
@@ -12,462 +12,182 @@
 \faculty{Faculty of Computers, Informatics, and Microelectronics}
 \department{Department of Software Engineering}
 \studyprogramme{Software Engineering Study Programme}
-\documenttype{Laboratory report}
-\reporttitle{Operating Systems Laboratory 3}
-\reportsubtitle{The Command Line: Shell, Pipes, and Text Filters}
+\documenttype{Report on laboratory work no. 3}
+\reporttitle{Operating Systems}
+\reportsubtitle{The Command Line: Shell, Pipes and Text Filters}
 \student{Lucian-Adrian Gavril}{FAF-241}
 \supervisor{Reițman Patricia}{univ. assist.}
 \cityyear{Chișinău}{2026}
 
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+
 \begin{document}
+\sloppy
 \makeutmreporttitlepage
 {\small\tableofcontents}
 \clearpage
 
-\begin{utmabstract}[Abstract]
-This laboratory report investigates the UNIX command-line interface, POSIX shell semantics, and stream processing techniques on modern Linux. The work examines command resolution across shell built-ins and external binaries via the \texttt{PATH} environment variable, analyzes shell parsing phases including parameter expansion, word splitting, globbing, and quote removal, and characterizes file descriptor redirection order and job control. Furthermore, using a standard 500-request web access dataset, complex analytical queries are formulated into single-line pipeline filters utilizing \texttt{grep}, \texttt{cut}, \texttt{sort}, \texttt{uniq}, and \texttt{wc}. Finally, an automated shell script is developed with POSIX parameter validation, formatted reporting, and a temporary cron check. The figures are genuine terminal captures from the Dev1 Debian GNU/Linux 13 host, recorded on 10 October 2026. Earlier dataset and script values were checked on 9 October and are reproduced alongside the captures. These records do not establish that the assigned course laptop or VM was used.
-
-\utmkeywords{operating systems, bash, unix pipelines, text filters, stream redirection, shell scripting, process environment}
-\end{utmabstract}
-
 \utmintroduction
-The command-line interface is the primary operational surface through which an operating system kernel is directed. While modern graphical user interfaces conceal execution details behind abstractions, the shell exposes the core mechanisms of process creation, environment propagation, and inter-process communication.
+\textbf{Purpose of the work.} To work fluently in Bash, to predict what the shell does to a command line before it runs, to send output and errors exactly where they are wanted, and to answer real questions about a data set with one line of small filters joined by pipes. The last part turns the best one-liners into a script with argument checking and runs it automatically with cron.
 
-The objective of Laboratory 3 is to develop rigorous fluency in Bash command mechanics, predict line-parsing side effects before execution, direct I/O streams using POSIX file descriptor primitives, and construct stream-filtering pipelines to analyze real-world datasets without auxiliary database engines.
+\textbf{Environment.} Debian GNU/Linux 13 (trixie), GNU Bash 5.2.37, GNU coreutils 9.7, user \texttt{dev1}, working directory \texttt{\~{}/os-lab3}. The data set \texttt{access.log} was generated with the exact block from the handout; \texttt{wc -l access.log} printed \texttt{500 access.log}. Every terminal figure is the real output of the command shown in it.
 
-The terminal figures are captures of commands run on Dev1 Debian GNU/Linux 13 on 10 October 2026. Dataset and script values were checked against the 9 October run record. Dev1 is a remote host, so these records do not establish that the assigned course laptop or VM was used.
+\textbf{Method.} For every command marked PREDICT the prediction was written down first and then compared with the real output (Table~\ref{tab:predictions}). Every answer to an \emph{Observe} question is backed by a figure.
 
-The Bash and POSIX semantics follow the cited manuals \cite{bash,posix}; the small-filter approach follows the cited administration texts \cite{nemeth,shotts}.
+\chapter{Move fast, find help}
 
-The laboratory comprises five distinct parts:
+\section{Tab completion and history search}
+\texttt{ls /usr/sh} has a single match, so the first Tab already completes it in place to \texttt{/usr/share/}; the second Tab has nothing left to list. With a shorter, ambiguous prefix (\texttt{/usr/s}) the double Tab lists every candidate: \texttt{sbin/ share/ src/}. \texttt{cd /et} plus one Tab completes to \texttt{cd /etc/}, including the trailing slash, because \texttt{/etc} is the only match. After running \texttt{date}, \texttt{whoami} and \texttt{uname -r}, \texttt{Ctrl+R} followed by \texttt{da} found \texttt{date} in the history, and Enter executed it again (Figure~1.1).
+
+\shot{fig1_1_tab_completion.png}{Tab completion and Ctrl+R history search}
+
+\section{Built-in or external, and where the shell looks}
+\shot{fig1_2_type_which.png}{Output of type and which}
+\shot{fig1_3_path_dirs.png}{The directories in PATH}
+\shot{fig1_4_exit_code.png}{Exit code of a missing command, the -t option in man ls, and man -k}
+
+\section{Answers to the Observe questions}
 \begin{utmenumerate}
-\item \textbf{Navigation and Command Inspection}: Distinguishing shell built-ins from external binaries, evaluating environment lookup paths, and analyzing exit statuses;
-\item \textbf{Line Parsing and Expansion Rules}: Evaluating brace expansion, tilde expansion, parameter substitution, command substitution, arithmetic expansion, word splitting, pathname expansion (globbing), and quote suppression;
-\item \textbf{Redirection, Control Operators, and Job Control}: Characterizing standard file descriptors (stdin, stdout, stderr), order-dependent redirection syntax, conditional chaining operators (\texttt{;}, \texttt{\&\&}, \texttt{||}), and asynchronous process management;
-\item \textbf{Analytical Text Filters}: Formulating single-command pipelines to answer discrete statistical questions on an artificial web access log;
-\item \textbf{Structured Shell Automation}: Implementing a robust POSIX shell script with argument validation, stream aggregation, error handling, and cron daemon scheduling;
+\item \textbf{Which of cd, ls, echo are built-ins, and why MUST cd be one?} \texttt{cd} and \texttt{echo} are shell built-ins; \texttt{ls} is an external program, \texttt{/usr/bin/ls} (Figure~1.2). The current directory is a property of each process. An external \texttt{cd} would run in a child process created with \texttt{fork()}, change the directory of that child with \texttt{chdir()}, and exit; the shell itself would stay where it was. Only the shell process can change its own directory, so \texttt{cd} must run inside it.
+\item \textbf{How many directories are in your PATH, and in which one is ls?} 4 directories: \texttt{/usr/local/bin}, \texttt{/usr/bin}, \texttt{/bin}, \texttt{/usr/games} (Figure~1.3). \texttt{ls} is in \texttt{/usr/bin}; it is found there first because the directories are searched left to right.
+\item \textbf{What exit code does a command that is not found return?} \texttt{127} (Figure~1.4). For comparison, a file that exists but is not executable gives \texttt{126} (Figure~5.2).
+\item \textbf{Which option of ls sorts by modification time?} \texttt{-t}, ``sort by time, newest first'' (Figure~1.4); \texttt{ls -lt} shows the times and \texttt{ls -ltr} puts the newest file last.
 \end{utmenumerate}
 
-\chapter{Navigation and Command Inspection}
+\chapter{What the shell does to your line}
 
-\section{Tab completion and history recall}
-Command completion and incremental history search decrease operational latency and reduce lexical errors. In Bash, typing \texttt{ls /usr/sh} followed by a double Tab invokes readline completion, querying the filesystem for matching entries. When the prefix is ambiguous, the shell prints all candidate entries (\texttt{share/}, \texttt{shift/}). Conversely, typing \texttt{cd /et} followed by a single Tab resolves unambiguously to \texttt{cd /etc/}, appending the directory slash and awaiting user arguments (Figure \ref{fig:tab_completion}).
+\section{The play directory}
+\shot{fig2_1_play_files.png}{Files created in the play directory}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig1_1_tab_completion.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Tab completion behavior for ambiguous and unambiguous path prefixes.}
-\label{fig:tab_completion}
-\end{figure}
-
-The readline reverse-search utility, triggered via \texttt{Ctrl+R}, queries the history buffer stored in memory and persisted in \texttt{\~{}/.bash\_history}. By entering search substrings, previously executed commands are recalled without re-typing.
-
-\section{Built-in commands versus external utilities}
-When a user issues a command, the shell determines whether the symbol corresponds to an internal shell built-in or an external binary located on disk. The \texttt{type} built-in queries this categorization, whereas \texttt{which} searches only filesystem directories registered in the \texttt{PATH} variable (Figure \ref{fig:type_which}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig1_2_type_which.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Classification of built-in versus external executable commands.}
-\label{fig:type_which}
-\end{figure}
-
-The \texttt{PATH} variable holds a colon-delimited list of directories traversed sequentially from left to right when an unqualified command name is provided. Piping this variable through \texttt{tr ':' '\textbackslash n'} presents each search tier on an individual line (Figure \ref{fig:path_dirs}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig1_3_path_dirs.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: System PATH hierarchy directories printed one per line.}
-\label{fig:path_dirs}
-\end{figure}
-
-When a command cannot be found within any directory of \texttt{PATH}, the shell returns an exit code of \texttt{127} (Figure \ref{fig:exit_code}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig1_4_exit_code.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Exit status code 127 produced by an unresolvable command name.}
-\label{fig:exit_code}
-\end{figure}
-
-\section{Answers to Part 1 Observe questions}
-\begin{utmenumerate}
-\item \textbf{Which of \texttt{cd}, \texttt{ls}, \texttt{echo} are built-ins, and why MUST \texttt{cd} be one?} \\ \texttt{cd} and \texttt{echo} are shell built-ins, whereas \texttt{ls} is an external binary located at \texttt{/usr/bin/ls}. \texttt{cd} MUST be a built-in because the current working directory is a state attribute stored in the process control block of the running shell. If \texttt{cd} were implemented as an external binary, the shell would invoke \texttt{fork()} and \texttt{exec()} to run it; the child process would change its own working directory via \texttt{chdir()} and immediately terminate, leaving the parent shell's working directory unchanged;
-\item \textbf{How many directories are in your PATH, and in which one is \texttt{ls}?} \\ The 9 October Debian 13 check listed 4 PATH entries and resolved \texttt{ls} to \texttt{/usr/bin/ls}. PATH length depends on the host; check the assigned course system if required;
-\item \textbf{What exit code does a command that is not found return?} \\ Standard POSIX Bash returns exit status code \texttt{127};
-\item \textbf{Which option of \texttt{ls} sorts by modification time?} \\ The \texttt{-t} flag sorts entries by modification time (newest first). Appending \texttt{-r} reverses the sort order;
-\end{utmenumerate}
-
-\chapter{Shell Line Parsing and Expansions}
-
-\section{Parsing phases and test directory creation}
-Prior to program execution, the shell processes the input string through distinct parsing phases: tokenization, brace expansion, tilde expansion, parameter expansion, command substitution, arithmetic expansion, word splitting, pathname expansion (globbing), and quote removal.
-
-Figure \ref{fig:argv_concept} gives a high-level view of the boundary between command text, shell-prepared arguments, and program execution. It is conceptual: it does not specify Bash's complete expansion-order algorithm.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/concept-shell-arguments.png}
-\caption{Conceptual illustration of shell argument preparation before program execution; not an execution capture or a complete Bash expansion-order specification.}
-\label{fig:argv_concept}
-\end{figure}
-
-A test sandbox directory \texttt{\~{}/os-lab3/play} was instantiated containing standard and edge-case filenames, notably filenames containing embedded whitespace (Figure \ref{fig:play_files}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig2_1_play_files.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Files created in the play directory for parsing verification.}
-\label{fig:play_files}
-\end{figure}
-
-\section{Globbing and expansion verification}
-Pathname expansion replaces wildcard patterns with sorted matching filesystem entries. If no entry matches, Bash retains the literal wildcard text unless \texttt{nullglob} is explicitly set (Figure \ref{fig:globbing}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig2_2_globbing.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Pathname expansion (globbing) results across character sets and extensions.}
-\label{fig:globbing}
-\end{figure}
-
-Word splitting is governed by the Internal Field Separator (\texttt{IFS}, space by default). Unquoted whitespace causes the tokenizer to split strings into multiple distinct arguments, resulting in execution failures when referencing files with spaces (Figure \ref{fig:spaces_error}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig2_3_spaces_error.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Word splitting failure on filenames with spaces and proper quoting fixes.}
-\label{fig:spaces_error}
-\end{figure}
-
-Single quotes (\texttt{'...'}) suppress all expansions, treating every character literally. Double quotes (\texttt{"..."}) prevent globbing and word splitting while allowing parameter expansion and command substitution. Backslashes (\texttt{\textbackslash}) escape individual metacharacters (Figure \ref{fig:quotes}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig2_4_quotes.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Quotation semantics, arithmetic expansion, and subshell substitution.}
-\label{fig:quotes}
-\end{figure}
-
-\section{Command prediction and verification table}
-Table \ref{tab:predictions} keeps pre-run predictions separate from example output values. Figures 2.1–2.4 show the observed command behavior; the later dataset and script sections report measured outputs from the retained run records.
+\section{Predictions against real output}
+Before \texttt{echo} or \texttt{ls} runs, the shell performs brace expansion, tilde and parameter expansion, command substitution, arithmetic expansion, word splitting, pathname expansion (globbing) and quote removal. The program receives only the resulting \texttt{argv[]}.
 
 \begin{table}[H]
-\centering
-\small
-\setlength{\tabcolsep}{4pt}\begin{tabular}{p{2.4cm}p{3.0cm}p{3.4cm}p{4.2cm}}
+\centering\small\setlength{\tabcolsep}{3pt}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{5.0cm}}
 \toprule
-\textbf{Command} & \textbf{Prediction} & \textbf{Illustrative example, not measured} & \textbf{Explanation} \\
+\textbf{Command} & \textbf{My prediction} & \textbf{Real output} & \textbf{Explanation (if different)} \\
 \midrule
-\texttt{echo *.c} & Prints all C source files & \texttt{a.c b.c} & Shell expands \texttt{*.c} to directory matches before invoking echo. \\
-\texttt{echo file?.txt} & Matches single wildcard character & \texttt{file1.txt file2.txt} & \texttt{?} matches exactly one character. \\
-\texttt{echo [a-b]*} & Matches files starting with a or b & \texttt{a.c b.c} & Character range \texttt{[a-b]} expands matching files. \\
-\texttt{echo *.xyz} & Prints literal pattern & \texttt{*.xyz} & Unmatched glob pattern is preserved as literal text. \\
-\texttt{ls alfa beta.txt} & Attempts to list two files; fails & Error: No such file or directory & Shell splits unquoted space into two separate arguments. \\
-\texttt{ls "alfa beta.txt"} & Lists single file with space & \texttt{'alfa beta.txt'} & Double quotes prevent word splitting across whitespace. \\
-\texttt{echo '\$HOME' "\$HOME" \textbackslash\$HOME} & Literal, expanded, literal & \texttt{\$HOME /home/user \$HOME} & Single quotes disable expansion; double quotes expand; backslash escapes. \\
-\texttt{echo \{1..5\} ; echo \$((7*6))} & Sequence 1 to 5; arithmetic 42 & \texttt{1 2 3 4 5} \newline \texttt{42} & Brace expansion creates sequence; \texttt{\$((...))} computes arithmetic. \\
-\texttt{echo "today is \$(date +\%A)..."} & Formats current date and user & \texttt{today is Monday, I am ubuntu} & Command substitution executes subshell and injects output. \\
-\texttt{touch log\{1..3\}.txt \&\& ls log*} & Creates and lists 3 log files & \texttt{log1.txt log2.txt log3.txt} & Brace expansion creates three targets; globbing lists them. \\
+\texttt{echo *.c} & \texttt{a.c b.c} & \texttt{a.c b.c} & Matches. \\
+\texttt{echo file?.txt} & \texttt{file1.txt file2.txt} & \texttt{file1.txt file2.txt} & Matches. \\
+\texttt{echo [a-b]*} & \texttt{a.c b.c} & \texttt{a.c alfa beta.txt b.c} & \textbf{Differs.} I forgot that \texttt{alfa beta.txt} also starts with \texttt{a}. The glob produces it as \emph{one} word, but \texttt{echo} separates its arguments with spaces, so it looks like two names. \\
+\texttt{echo *.xyz} & \texttt{*.xyz} & \texttt{*.xyz} & Matches: with no match Bash leaves the pattern unchanged (no \texttt{nullglob}). \\
+\texttt{ls alfa beta.txt} & error & two errors: \texttt{cannot access 'alfa'}, \texttt{cannot access 'beta.txt'} & Matches, but there are two messages, one per word: \texttt{ls} received two arguments. \\
+\texttt{ls "alfa beta.txt"} & \texttt{alfa beta.txt} & \texttt{'alfa beta.txt'} & \textbf{Differs:} GNU \texttt{ls} prints the name in quotes (see Q4 below). \\
+\texttt{echo '\$HOME' "\$HOME" \textbackslash\$HOME} & \texttt{\$HOME /home/dev1 \$HOME} & \texttt{\$HOME /home/dev1 \$HOME} & Matches. \\
+\texttt{echo \{1..5\} ; echo \$((7 * 6))} & \texttt{1 2 3 4 5} and \texttt{42} & \texttt{1 2 3 4 5} and \texttt{42} & Matches. \\
+\texttt{echo "today is \$(date +\%A), I am \$(whoami)"} & \texttt{today is Monday, I am dev1} & \texttt{today is Monday, I am dev1} & Matches: substitution works inside double quotes. \\
+\texttt{touch log\{1..3\}.txt \&\& ls log*} & \texttt{log1.txt log2.txt log3.txt} & the same, one per line & \textbf{Differs in layout:} \texttt{ls} writes one name per line when its output is not a terminal. \\
 \bottomrule
 \end{tabular}
-\caption{Predictions and fixed illustrative examples; outputs are not retained measurements.}
+\caption{Predictions compared with the real output}
 \label{tab:predictions}
 \end{table}
-The 10 October terminal capture records \texttt{/home/dev1} and \texttt{today is Saturday, I am dev1}; these values depend on the host and date.
 
-\section{Answers to Part 2 Observe questions}
+\shot{fig2_2_globbing.png}{Globbing, brace, arithmetic and command substitution results}
+\shot{fig2_3_spaces_error.png}{The ls error on a name with a space, and three fixes}
+\shot{fig2_4_quotes.png}{Single quotes, double quotes and backslash}
+
+\section{Answers to the Observe questions}
 \begin{utmenumerate}
-\item \textbf{\texttt{echo} knows nothing about files, yet \texttt{echo *.c} printed file names. Who produced them?} \\ The shell produced them during the pathname expansion phase before invoking \texttt{echo}. The shell queries the filesystem directory table, sorts matching entries, and replaces the token \texttt{*.c} with arguments \texttt{argv[1] = "a.c"} and \texttt{argv[2] = "b.c"}. The \texttt{echo} binary merely iterates over its argument array and writes them to stdout;
-\item \textbf{Why did \texttt{ls alfa beta.txt} fail? Give two different ways to fix it.} \\ It failed because the unquoted space acts as an argument delimiter. The shell invoked \texttt{ls} with two arguments: \texttt{"alfa"} and \texttt{"beta.txt"}. Because neither file exists independently, \texttt{ls} produced two error messages. Fix 1: Enclose the target string in quotes: \texttt{ls "alfa beta.txt"}. Fix 2: Escape the space character using a backslash: \texttt{ls alfa\textbackslash\ beta.txt};
-\item \textbf{What is the difference between single and double quotes?} \\ Single quotes treat every character enclosed literally, disabling parameter expansion (\texttt{\$VAR}), command substitution (\texttt{\$(...)}), and arithmetic evaluation. Double quotes suppress globbing and word splitting while preserving variable expansion, command substitution, and backslash escaping;
-\item \textbf{Why does \texttt{ls} show the file with a space in quotes (\texttt{'alfa beta.txt'})?} \\ Modern GNU Coreutils \texttt{ls} defaults to \texttt{--quoting-style=shell-escape}, quoting filenames containing whitespace or shell metacharacters so the printed representation can be safely copied and re-entered into a shell prompt without splitting errors;
+\item \textbf{Prediction against output.} See Table~\ref{tab:predictions}: 7 of 10 lines matched exactly; the three differences are explained in the table.
+\item \textbf{echo knows nothing about files, yet echo *.c printed file names. Who produced them?} The shell. During pathname expansion Bash reads the directory, sorts the names that match \texttt{*.c}, and replaces the pattern with them, so \texttt{echo} is started with \texttt{argv = \{"echo", "a.c", "b.c"\}} and simply prints its arguments. \texttt{echo "*.c"} prints \texttt{*.c} because quotes switch globbing off (Figure~2.4).
+\item \textbf{Why did ls alfa beta.txt fail? Give two different ways to fix it.} The unquoted space splits the line into two words, so \texttt{ls} looks for two files, \texttt{alfa} and \texttt{beta.txt}, and neither exists. Fixes (Figure~2.3): quote the name, \texttt{ls "alfa beta.txt"} (or \texttt{'alfa beta.txt'}), or escape the space, \texttt{ls alfa\textbackslash\ beta.txt}. Tab completion produces the escaped form automatically.
+\item \textbf{What is the difference between single and double quotes?} Inside single quotes nothing is expanded: \texttt{'\$HOME'} and \texttt{'\$(whoami)'} stay literal. Inside double quotes \texttt{\$} expansions and command substitution still work (\texttt{"\$HOME"} becomes \texttt{/home/dev1}), but word splitting and globbing do not. A backslash quotes a single character (Figure~2.4).
+\item \textbf{Why does ls show 'alfa beta.txt' in quotes?} Since coreutils 8.25, \texttt{ls} uses \texttt{--quoting-style=shell-escape} by default when it writes to a terminal. It quotes names with spaces or special characters, so the printed name can be copied back into a command as one argument. With \texttt{--quoting-style=literal} the quotes disappear (Figure~2.3).
 \end{utmenumerate}
 
-\chapter{I/O Redirection, Chaining, and Jobs}
+\chapter{Redirection, chaining and jobs}
 
-\section{File descriptor redirection}
-In POSIX systems, processes interact with standard streams via integer descriptors: standard input (0), standard output (1), and standard error (2). Redirection operators alter stream destinations by opening files and duplicating descriptors using the \texttt{dup2()} system call prior to process execution (Figure \ref{fig:redirections}).
+\shot{fig3_1_redirections.png}{stdout and stderr in separate files}
+\shot{fig3_2_redir_order.png}{Comparing the order of redirections}
+\shot{fig3_3_operators.png}{The ; \&\& || operators}
+\shot{fig3_4_jobs.png}{Running a background job and stopping it}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig3_1_redirections.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Separation of stdout and stderr into dedicated output files.}
-\label{fig:redirections}
-\end{figure}
-
-The lexical order of redirection operators is evaluated strictly from left to right. When executing \texttt{ls /etc /nope > all.txt 2>\&1}, file descriptor 1 is pointed to \texttt{all.txt}, and descriptor 2 is then duplicated to match descriptor 1. In contrast, in \texttt{ls /etc /nope 2>\&1 > all.txt}, descriptor 2 is duplicated to where descriptor 1 currently points (the terminal), after which descriptor 1 is redirected to the file, leaving error messages on the terminal screen (Figure \ref{fig:redir_order}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig3_2_redir_order.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Comparison of redirection evaluation ordering.}
-\label{fig:redir_order}
-\end{figure}
-
-\section{Control operators and background job management}
-Sequential execution operators regulate command execution based on exit status:
-\begin{itemize}
-\item \texttt{;} unconditionally executes the subsequent command;
-\item \texttt{\&\&} executes the subsequent command only if the preceding command succeeded (exit status 0);
-\item \texttt{||} executes the subsequent command only if the preceding command failed (non-zero exit status);
-\end{itemize}
-
-Figure \ref{fig:operators} illustrates operator behavior under both failure and success cases.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig3_3_operators.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Execution control using conditional operators and subshells.}
-\label{fig:operators}
-\end{figure}
-
-Appending \texttt{\&} detaches a process from the shell's foreground execution, allowing the shell prompt to accept subsequent commands immediately while the child executes asynchronously. Background jobs are managed using the \texttt{jobs} built-in and terminated via signals with \texttt{kill} (Figure \ref{fig:jobs}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig3_4_jobs.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Launching an asynchronous background process and terminating via SIGTERM.}
-\label{fig:jobs}
-\end{figure}
-
-\section{Answers to Part 3 Observe questions}
+\section{Answers to the Observe questions}
 \begin{utmenumerate}
-\item \textbf{Which file got the error message, and which got the listing?} \\ \texttt{err.txt} received the error message (\texttt{ls: cannot access \'/nope\'...}). The 9 October Debian 13 check recorded 197 stdout lines for \texttt{ls /etc /nope}, which includes a directory heading; see the retained raw check log;
-\item \textbf{What is the difference between \texttt{> all.txt 2>\&1} and \texttt{2>\&1 > all.txt}?} \\ In \texttt{> all.txt 2>\&1}, standard output is first redirected to \texttt{all.txt}; then descriptor 2 is duplicated to point to the file descriptor of \texttt{all.txt}, routing both streams into the file. In \texttt{2>\&1 > all.txt}, descriptor 2 is duplicated to point to stdout's current destination (the terminal screen); subsequently, descriptor 1 is redirected to \texttt{all.txt}. Thus, stderr remains connected to the terminal while only stdout reaches the file;
-\item \textbf{Why does \texttt{wc -l < access.log} print only a number, while \texttt{wc -l access.log} also prints the file name?} \\ When supplied a file path as an argument, \texttt{wc} opens the file by name and prints both the counted total and the filename. When input is redirected with \texttt{<}, the shell opens the file and attaches it to descriptor 0. The \texttt{wc} process reads purely from stdin, possesses no knowledge of the underlying filename, and outputs only the numeric tally;
-\item \textbf{Explain each operator in one sentence: \texttt{;}, \texttt{\&\&}, \texttt{||}.} \\ \texttt{;} executes the next command unconditionally. \texttt{\&\&} executes the next command only if the preceding command returns exit status 0 (success). \texttt{||} executes the next command only if the preceding command returns a non-zero exit status (failure);
+\item \textbf{Which file got the error message, and which got the listing?} \texttt{out.txt} got the listing of \texttt{/etc} (stdout, file descriptor 1); \texttt{err.txt} got the one line \texttt{ls: cannot access '/nope': No such file or directory} (stderr, file descriptor 2), as Figure~3.1 shows.
+\item \textbf{What is the difference between > all.txt 2>\&1 and 2>\&1 > all.txt?} Redirections are applied left to right, and \texttt{2>\&1} means ``make fd 2 a copy of fd 1 \emph{as it is now}''. In \texttt{> all.txt 2>\&1}, fd 1 is first pointed at the file, then fd 2 copies it, so both streams go to \texttt{all.txt}: \texttt{grep -c nope all.txt} prints \texttt{1}. In \texttt{2>\&1 > all.txt}, fd 2 copies fd 1 while fd 1 is still the terminal, and only afterwards is fd 1 moved to the file. The error therefore appears on the screen and the file contains only the listing (\texttt{grep -c} prints \texttt{0}), as Figure~3.2 shows.
+\item \textbf{Why does wc -l < access.log print only a number?} With \texttt{<} the shell opens the file and connects it to fd 0 before \texttt{wc} starts; \texttt{wc} reads anonymous standard input and never learns a file name. With \texttt{wc -l access.log}, \texttt{wc} opens the file itself and prints the name it was given: \texttt{500} against \texttt{500 access.log} (Figure~3.1).
+\item \textbf{Explain ; \&\& ||.} \texttt{;} runs the next command unconditionally; \texttt{\&\&} runs it only if the previous command succeeded (exit status 0); \texttt{||} runs it only if the previous command failed (non-zero status). In Figure~3.3, \texttt{ls /nope || echo} printed \texttt{failed with code 2}, while the text after \texttt{\&\&} was never printed.
+\end{utmenumerate}
+In Figure~3.4, \texttt{sleep 100 \&} starts the job in the background, so the prompt returns immediately. \texttt{jobs} shows it as \texttt{Running}; \texttt{kill \%1} sends it SIGTERM, and the next \texttt{jobs} reports it as \texttt{Terminated} once and then no longer lists it.
+
+\chapter{Answering questions with one-liners}
+Each line of \texttt{access.log} has five space-separated fields: date, time, user, result, page. All answers are in \texttt{oneliners.sh}, one line per question, and the file runs with \texttt{bash oneliners.sh} inside \texttt{\~{}/os-lab3} (Figure~4.9). Both self-checks from the handout pass: the Q3 counts add up to 500, and the per-user failure counts add up to the Q1 total of 100.
+
+\section{Q1. How many requests failed?}
+\texttt{grep -c FAIL access.log} gives \textbf{100}. This is consistent with the generator: a line is FAIL when $i \bmod 5 = 0$, and $500/5 = 100$.
+\shot{fig4_1.png}{Number of failed requests}
+
+\section{Q2. How many different pages, and which?}
+\texttt{cut -d' ' -f5 access.log | sort -u | awk '\{print\} END\{print NR " different pages"\}'} gives \textbf{4 pages}: \texttt{/page0}, \texttt{/page1}, \texttt{/page2}, \texttt{/page3}.
+\shot{fig4_2.png}{Different pages requested}
+
+\section{Q3. How many requests did each page get?}
+\texttt{cut -d' ' -f5 access.log | sort | uniq -c} gives \textbf{125} for each page, $4 \times 125 = 500$. The second command in Figure~4.3 checks that the sum is 500.
+\shot{fig4_3.png}{Requests per page and the check that they add up to 500}
+
+\section{Q4. Which user or users have the most failed requests?}
+\texttt{grep FAIL access.log | cut -d' ' -f3 | sort | uniq -c | sort -rn | awk 'NR==1\{max=\$1\} \$1==max'} prints every user tied at the maximum, not a fixed number of lines: \textbf{user3 and user5, 15 failures each}. The other five users have 14 each, and the sum over users is $2\cdot15+5\cdot14=100$, equal to Q1.
+\shot{fig4_4.png}{Users with the most failed requests and the check against Q1}
+
+\section{Q5. How many requests did user3 make, and how many failed?}
+\texttt{grep -w} matches \texttt{user3} as a whole word: \textbf{72 requests, 15 failed}. As a cross-check, user3 is $i \equiv 3 \pmod 7$, which gives 72 values in 1..500. A request fails for $i \equiv 0 \pmod 5$ as well, i.e.\ $i \equiv 10 \pmod{35}$, which gives 15 values.
+\shot{fig4_5.png}{Requests and failures of user3}
+
+\section{Q6. The last 3 failed requests, time and user only}
+\texttt{grep FAIL access.log | tail -n 3 | cut -d' ' -f2,3} gives \texttt{10:10 user0}, \texttt{10:15 user5}, \texttt{10:20 user3} (lines 490, 495 and 500).
+\shot{fig4_6.png}{The last three failed requests}
+
+\section{Q7. Login shells in /etc/passwd}
+\texttt{cut -d: -f7 /etc/passwd | sort | uniq -c | sort -rn} gives 29 accounts with \texttt{/usr/sbin/nologin}, 3 with \texttt{/bin/false}, 3 with \texttt{/bin/bash} and 1 with \texttt{/bin/sync}. Most accounts are system services that must never log in interactively.
+\shot{fig4_7.png}{Accounts per login shell}
+
+\section{Q8. Why do ls /etc | wc -l and ls -l /etc | wc -l differ by one?}
+\textbf{Prediction:} the long format adds one header line. \textbf{Result:} 210 against 211, and the extra line is \texttt{total 1064}, the number of 1~KiB blocks used by the listed entries. Every other line is one entry in both formats, so the difference is always exactly one.
+\shot{fig4_8.png}{Line counts with and without -l}
+
+\section{Bonus: minute ending in 0 and failed}
+\texttt{grep -E '\^{}[\^{} ]+ 10:[0-5]0 [\^{} ]+ FAIL ' access.log} anchors the time to the second field and the result to the fourth, so a \texttt{0} in another field cannot match. It prints \textbf{50 lines}. This agrees with arithmetic: the minute is $i \bmod 60$, so it ends in 0 exactly when $i \equiv 0 \pmod{10}$, and every such $i$ is also divisible by 5, hence FAIL. There are $500/10 = 50$ such lines.
+
+\shot{fig4_9_oneliners_run.png}{Full run of oneliners.sh}
+
+\chapter{Your first script}
+
+\section{report.sh}
+The TODO is completed with a loop over \texttt{user0} to \texttt{user6}. \texttt{grep -w} matches the user as a whole word, so the pattern for \texttt{user1} cannot match a longer name such as \texttt{user10}.
+\shot{fig5_1_report_script.png}{Contents of report.sh}
+\shot{fig5_2_running_report.png}{Running the script: without execute permission, without ./, and on access.log}
+\shot{fig5_3_missing_file_error.png}{Error handling for a missing file}
+
+\section{Answers to the Observe questions}
+\begin{utmenumerate}
+\item \textbf{What does \#!/bin/bash do, and what happens before chmod +x?} The shebang tells the kernel, inside \texttt{execve()}, which interpreter runs the file: the kernel actually executes \texttt{/bin/bash ./report.sh access.log}. Without the execute bit the kernel refuses: \texttt{Permission denied}, exit code \texttt{126} (Figure~5.2). \texttt{bash report.sh} would still work, because then bash only reads the file.
+\item \textbf{Why ./report.sh and not report.sh?} A name without a slash is looked up only in the PATH directories, and the current directory is not one of them, so \texttt{report.sh} gives \texttt{command not found} (Figure~5.2). Keeping \texttt{.} out of PATH prevents a file planted in some directory from shadowing a real command such as \texttt{ls}. \texttt{./} is an explicit path, so no search happens.
+\item \textbf{Why >\&2 and exit 1?} The error message goes to stderr, so it never mixes with the data on stdout: with \texttt{2>/dev/null} the message disappears but the exit code is still 1 (Figure~5.3). \texttt{exit 1} reports failure to the caller, so \texttt{./report.sh x.log \&\& next} does not continue and cron or other scripts can detect the error.
 \end{utmenumerate}
 
-\chapter{Analytical Text Filters}
-
-\section{Web access dataset structure}
-An artificial access log consisting of 500 entries was generated matching the course specification:
+\section{Bonus: running report.sh with cron}
+The line below was added with \texttt{crontab}. It uses absolute paths because cron starts jobs in the home directory with a minimal PATH, and \texttt{>> ... 2>\&1} appends both output streams to the log. After two and a half minutes the log held the complete report from each minute. The line was then removed, leaving the existing crontab entries untouched (Figure~5.4).
 \begin{verbatim}
-2026-10-05 10:01 user1 OK /page1
-2026-10-05 10:02 user2 OK /page2
-...
-2026-10-05 10:20 user6 FAIL /page0
+* * * * * /home/dev1/os-lab3/report.sh /home/dev1/os-lab3/access.log
+          >> /home/dev1/os-lab3/report.log 2>&1
 \end{verbatim}
-Each record comprises date, timestamp, username, request result (\texttt{OK} or \texttt{FAIL}), and requested resource endpoint.
-
-\section{Single-command pipeline solutions}
-All analytical questions were formulated as individual pipeline commands in \texttt{oneliners.sh} and verified on the live log.
-
-\subsection{Q1: Number of failed requests}
-\begin{verbatim}
-grep -c FAIL access.log
-\end{verbatim}
-Output: \texttt{100}. Exactly 100 requests failed (Figure \ref{fig:q1}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_1_failed_requests.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Total count of failed requests.}
-\label{fig:q1}
-\end{figure}
-
-\subsection{Q2: Unique requested pages}
-\begin{verbatim}
-cut -d' ' -f5 access.log | sort -u
-\end{verbatim}
-Output: \texttt{/page0}, \texttt{/page1}, \texttt{/page2}, \texttt{/page3} (Figure \ref{fig:q2}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_2_pages_list.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Distinct web endpoints requested.}
-\label{fig:q2}
-\end{figure}
-
-\subsection{Q3: Request count per page}
-\begin{verbatim}
-cut -d' ' -f5 access.log | sort | uniq -c
-\end{verbatim}
-Output: Each of the 4 pages received exactly 125 requests, summing to 500 total entries (Figure \ref{fig:q3}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_3_page_counts.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Request distribution across endpoints.}
-\label{fig:q3}
-\end{figure}
-
-\subsection{Q4: Users with the highest failure count}
-\begin{verbatim}
-grep FAIL access.log | cut -d' ' -f3 | sort | uniq -c | sort -rn | head -n 2
-\end{verbatim}
-Output: \texttt{user3} and \texttt{user5} both registered 15 failures, tied for the maximum (Figure \ref{fig:q4}). The sum of failures across all 7 users equals exactly 100.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_4_most_failures.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Users exhibiting the greatest failure frequency.}
-\label{fig:q4}
-\end{figure}
-
-\subsection{Q5: Activity breakdown for user3}
-\begin{verbatim}
-echo "user3 total: $(grep -c 'user3 ' access.log), \
-failed: $(grep 'user3 ' access.log | grep -c FAIL)"
-\end{verbatim}
-The 9 October Debian 13 log records 72 total requests by \texttt{user3}, of which 15 failed (Figure \ref{fig:q5}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_5_user3_counts.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: user3 request count and failed requests.}
-\label{fig:q5}
-\end{figure}
-
-\subsection{Q6: Last three failed requests}
-\begin{verbatim}
-grep FAIL access.log | tail -n 3 | cut -d' ' -f2,3
-\end{verbatim}
-The 9 October Debian 13 log records \texttt{10:10 user0}, \texttt{10:15 user5}, and \texttt{10:20 user3} as the last three failed rows (Figure \ref{fig:q6}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_6_last3_failures.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: last three failed request rows.}
-\label{fig:q6}
-\end{figure}
-
-\subsection{Q7: Accounts per login shell in /etc/passwd}
-\begin{verbatim}
-cut -d: -f7 /etc/passwd | sort | uniq -c | sort -rn
-\end{verbatim}
-The 10 October terminal capture records 29 \texttt{/usr/sbin/nologin}, 3 \texttt{/bin/false}, 2 \texttt{/bin/bash}, and 1 \texttt{/bin/sync}. These counts depend on the host.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_7_login_shells.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: account counts by login shell.}
-\label{fig:q7}
-\end{figure}
-
-
-
-\subsection{Q8: Line count discrepancy between ls and ls -l}
-\begin{verbatim}
-ls /etc | wc -l ; ls -l /etc | wc -l
-\end{verbatim}
-The 10 October terminal capture records 196 lines for \texttt{ls /etc | wc -l} and 197 for \texttt{ls -l /etc | wc -l}; the one-line difference is the \texttt{total} summary line in long format.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_8_ls_wc_diff.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: line counts with and without long listing format.}
-\label{fig:q8}
-\end{figure}
-
-
-
-\subsection{Full pipeline suite execution and bonus}
-All one-liner queries were bundled in \texttt{oneliners.sh}. The bonus regex query:
-\begin{verbatim}
-grep -E '10:[0-5]0 .* FAIL' access.log
-\end{verbatim}
-isolates requests occurring at 10-minute intervals that failed, yielding exactly 50 matching lines (Figure \ref{fig:q9}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig4_9_oneliners_run.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: complete one-liner run and bonus match count.}
-\label{fig:q9}
-\end{figure}
-
-\chapter{Structured Shell Automation}
-
-\section{Implementation of report.sh}
-The analytical one-liners were integrated into an executable automation script \texttt{report.sh}. The script incorporates argument verification, exit code signaling, and dynamic looping over users \texttt{user0} through \texttt{user6} (Figure \ref{fig:script_src}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig5_1_report_script.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Source implementation of report.sh with completed user iteration.}
-\label{fig:script_src}
-\end{figure}
-
-Execution against \texttt{access.log} correctly parses the 500 lines and outputs individual user failure metrics (Figure \ref{fig:running_report}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig5_2_running_report.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Execution of report.sh against the generated access dataset.}
-\label{fig:running_report}
-\end{figure}
-
-When supplied an invalid or missing file, the script writes diagnostic messages to stderr and terminates with status 1 (Figure \ref{fig:missing_error}).
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.88\textwidth]{assets/fig5_3_missing_file_error.jpg}
-\caption{Terminal capture, Dev1 Debian GNU/Linux 13, 10 October 2026: Diagnostic error reporting and non-zero exit code.}
-\label{fig:missing_error}
-\end{figure}
-
-\section{Cron daemon integration}
-The optional cron task ran on Dev1 Debian GNU/Linux 13 using a temporary copy of the Lab 3 files. Cron was active and the user crontab was empty before the test. The following one-minute entry ran \texttt{report.sh} against the copied dataset and appended its output to \texttt{report.log}:
-
-\begin{lstlisting}
-* * * * * /tmp/codex-os-lab3-4-20261009/lab3/report.sh /tmp/codex-os-lab3-4-20261009/lab3/access.log >> /tmp/codex-os-lab3-4-20261009/lab3/report.log 2>&1
-\end{lstlisting}
-
-The log recorded four complete runs during the approximately two-minute check. Its complete contents were:
-
-\begin{lstlisting}
-500 requests, 100 failed
-user0: 14 failures
-user1: 14 failures
-user2: 14 failures
-user3: 15 failures
-user4: 14 failures
-user5: 15 failures
-user6: 14 failures
-500 requests, 100 failed
-user0: 14 failures
-user1: 14 failures
-user2: 14 failures
-user3: 15 failures
-user4: 14 failures
-user5: 15 failures
-user6: 14 failures
-500 requests, 100 failed
-user0: 14 failures
-user1: 14 failures
-user2: 14 failures
-user3: 15 failures
-user4: 14 failures
-user5: 15 failures
-user6: 14 failures
-500 requests, 100 failed
-user0: 14 failures
-user1: 14 failures
-user2: 14 failures
-user3: 15 failures
-user4: 14 failures
-user5: 15 failures
-user6: 14 failures
-\end{lstlisting}
-
-The temporary cron entry was removed, and the user crontab was empty afterward. The log records a run on the remote Dev1 host; it does not establish use of the assigned course laptop or VM.
-
-\section{Answers to Part 5 Observe questions}
-\begin{utmenumerate}
-\item \textbf{What does the first line \texttt{\#!/bin/bash} do, and what happens if you run \texttt{./report.sh} before \texttt{chmod +x}?} \\ The shebang line \texttt{\#!/bin/bash} informs the kernel's \texttt{execve()} system call which interpreter binary to load when executing the script. Attempting to run \texttt{./report.sh} without execute permissions returns \texttt{bash: ./report.sh: Permission denied};
-\item \textbf{Why must you type \texttt{./report.sh} and not just \texttt{report.sh}?} \\ The shell only traverses directories explicitly listed in \texttt{\$PATH}. The current working directory (\texttt{.}) is omitted from \texttt{PATH} by default to prevent accidental execution of untrusted local binaries. Prefacing with \texttt{./} provides an explicit relative path;
-\item \textbf{Why does the script write the error with \texttt{>\&2} and end with \texttt{exit 1}?} \\ \texttt{>\&2} redirects error strings to standard error (descriptor 2), preserving standard output for clean pipeline data. \texttt{exit 1} signals abnormal termination to calling environments and conditional operators;
-\end{utmenumerate}
+\shot{fig5_4_cron.png}{The crontab line, the log it produced, and its removal}
 
 \utmconclusions
-The terminal figures show actual command output captured on the Dev1 Debian GNU/Linux 13 host. The handout calls for a Linux laptop or VM; this report does not establish which assigned environment was used.
+The main lesson of this lab is that the shell, not the program, does most of the work on a command line. \texttt{echo} never saw \texttt{*.c}; it received ready file names. \texttt{ls alfa beta.txt} failed before \texttt{ls} had a chance to understand the name, and \texttt{wc} printed no file name because it never received one. Once the expansion order is clear (braces, variables and substitutions, then word splitting, then globbing, then quote removal), the output can be predicted. The only misprediction, \texttt{[a-b]*}, came from overlooking a file, not from the rules.
+
+Redirection is just as mechanical: file descriptors are copied left to right, so \texttt{2>\&1} has to come after the redirection it copies. The control operators \texttt{;}, \texttt{\&\&} and \texttt{||} depend only on exit codes, and the same codes made the script errors visible: 127 for a missing command, 126 for a missing execute bit, 1 for the script's own error.
+
+The one-liners answered every question about the 500-line log with combinations of \texttt{grep}, \texttt{cut}, \texttt{sort}, \texttt{uniq} and \texttt{wc}. Each result was verified twice: by the handout's self-checks (125$\times$4 = 500, the per-user failures sum to 100) and by modular arithmetic on the generator (100, 72/15, 50). The Q4 solution prints every user tied at the maximum, so it stays correct when the log is regenerated with different data. Finally, \texttt{report.sh} turned the pipelines into a reusable program with argument checking, a correct error stream and exit code, and it ran unattended under cron.
 
 \begin{thebibliography}{9}
-\bibitem{nemeth} Nemeth, E., Snyder, G., Hein, T. R., Whaley, B., \& Mackin, D. (2017). \textit{UNIX and Linux System Administration Handbook} (5th ed.). Addison-Wesley Professional.
-\bibitem{shotts} Shotts, W. (2019). \textit{The Linux Command Line: A Complete Introduction} (2nd ed.). No Starch Press.
-\bibitem{posix} IEEE \& The Open Group. (2018). \textit{The Open Group Base Specifications Issue 7 / IEEE Std 1003.1-2017 (POSIX.1)}. Shell Command Language.
-\bibitem{bash} Free Software Foundation. (2024). \textit{Bash Reference Manual}. Version 5.2.
+\bibitem{bash} Free Software Foundation. \textit{Bash Reference Manual}, version 5.2. Shell Expansions; Redirections.
+\bibitem{posix} IEEE \& The Open Group. \textit{POSIX.1-2017}, Shell Command Language.
+\bibitem{shotts} Shotts, W. (2019). \textit{The Linux Command Line} (2nd ed.). No Starch Press.
+\bibitem{coreutils} GNU coreutils manual: \texttt{ls} quoting styles.
 \end{thebibliography}
 
 \end{document}

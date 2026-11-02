@@ -14,6 +14,6 @@ echo "$total requests, $fails failed"
 
 # Completed TODO: iterate over user0 through user6 and report individual failure totals
 for u in {0..6}; do
-  u_fails=$(grep "user$u " "$log" | grep -c FAIL)
+  u_fails=$(grep -w "user$u" "$log" | grep -c FAIL)
   echo "user$u: $u_fails failures"
 done
