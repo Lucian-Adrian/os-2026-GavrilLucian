@@ -1,0 +1,5 @@
+$ for i in $(seq 100); do
+    timeout 1 ./deadlock_nosleep > /dev/null && echo finished || echo hung
+  done | sort | uniq -c
+     32 finished
+     68 hung

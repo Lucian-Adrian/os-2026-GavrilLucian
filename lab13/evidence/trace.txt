@@ -1,0 +1,27 @@
+$ trace 117440512 semtest
+9: syscall sem_init -> 0
+parent: done, I let the child go
+9: syscall sem_up -> 0
+10: syscall sem_down -> 0
+child: I ran after the parent
+9: syscall sem_init -> 0
+9: syscall sem_init -> 0
+9: syscall sem_down -> 0
+ping 1
+9: syscall sem_up -> 0
+11: syscall sem_down -> 0
+  pong 1
+11: syscall sem_up -> 0
+9: syscall sem_down -> 0
+ping 2
+9: syscall sem_up -> 0
+11: syscall sem_down -> 0
+  pong 2
+11: syscall sem_up -> 0
+9: syscall sem_down -> 0
+ping 3
+9: syscall sem_up -> 0
+11: syscall sem_down -> 0
+  pong 3
+11: syscall sem_up -> 0
+semtest: OK

@@ -1,0 +1,134 @@
+\documentclass{assets/utmreport}
+
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
+\usepackage{newunicodechar}
+\newfontfamily\diafont{Liberation Serif}
+\newunicodechar{ș}{{\diafont ș}}\newunicodechar{ț}{{\diafont ț}}\newunicodechar{Ș}{{\diafont Ș}}\newunicodechar{Ț}{{\diafont Ț}}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{assets/utm-logo.jpeg}
+
+\institution{Technical University of Moldova}
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+\department{Department of Software Engineering}
+\studyprogramme{Software Engineering Study Programme}
+\documenttype{Report on laboratory work no. 11}
+\reporttitle{Operating Systems}
+\reportsubtitle{The Race and the Semaphore}
+\student{Lucian-Adrian Gavril}{FAF-241}
+\supervisor{Reițman Patricia}{univ. assist.}
+\cityyear{Chișinău}{2026}
+
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,frame=single,framerule=0.4pt,xleftmargin=1em,xrightmargin=1em}
+
+\begin{document}
+\sloppy
+\makeutmreporttitlepage
+{\small\tableofcontents}
+\clearpage
+
+\utmintroduction
+\textbf{Purpose of the work.} To see what happens when two threads change the same variable at the same time, and to fix it. The work runs an unprotected counter until it loses additions, protects it with a mutex and then with a semaphore, measures what the protection costs, and then uses the same semaphore in its two other roles: as a signal that orders two threads and as a counter of free resources.
+
+\textbf{Environment.} Debian GNU/Linux 13, Linux kernel 7.2, GCC 14.2, strace 6.13, on an Intel Core i7-1355U with 12 logical CPUs. Every program is compiled with \texttt{gcc -Wall -pthread} and \emph{without} \texttt{-O2}, as the brief asks, and builds with no warning. The variations asked by the Observe questions are built from the same sources with \texttt{-D} flags (\texttt{make sem2 order1 parking1}), so the handed-in files stay exactly as in the brief. Every terminal figure is the real output of the commands shown in it; the raw text is kept in \texttt{evidence/}.
+
+\chapter{See the race}
+
+\section{Two threads, one counter}
+\texttt{race.c} starts two threads that each execute \texttt{counter++} one million times. Five runs give 1\,214\,868, 1\,085\,564, 1\,031\,688, 1\,019\,785 and 1\,014\,123 (Figure~1.1). The right answer, 2\,000\,000, never appears, and in most runs almost half of the additions are lost.
+\shot{1_race.png}{race.c: five runs, five different wrong results}
+
+\section{What counter++ really is}
+The compiler output shows that one line of C is three machine instructions (Figure~1.2): a load of \texttt{counter} into the register \texttt{\%rax}, an add of 1 inside the register, and a store back to memory. Between the load and the store the value exists in two places, and only the copy in memory is shared.
+\shot{1_asm.png}{gcc -S race.c: counter++ is load, add, store}
+
+\section*{Observe 1}
+\textbf{1. Write the three steps the CPU really does.}
+Load (\texttt{movq counter(\%rip), \%rax}), add (\texttt{addq \$1, \%rax}), store (\texttt{movq \%rax, counter(\%rip)}).
+
+\textbf{2. How can two threads lose one addition?}
+\texttt{counter} is 100. Thread A loads 100. Before A stores, thread B, on another core, also loads 100. A adds 1 and stores 101; B adds 1 to its own copy and also stores 101. Two additions ran and \texttt{counter} grew by one: B's store overwrote A's.
+
+\textbf{3. Why is the result different at every run?}
+The number of lost additions is the number of times the two load--add--store sequences overlap. That depends on when each thread is started and scheduled, on which cores they run, on interrupts and on other load, and on when the cache line of \texttt{counter} moves between the cores. None of this repeats exactly from one run to the next.
+
+\chapter{Fix it: mutex, then semaphore}
+
+\section{A mutex and a semaphore around counter++}
+\texttt{mutex.c} puts \texttt{pthread\_mutex\_lock}/\texttt{unlock} around \texttt{counter++}; \texttt{sem.c} does the same with \texttt{sem\_wait}/\texttt{sem\_post} on a semaphore that starts at 1. The line between them is the critical section. Three runs of each print exactly 2\,000\,000 (Figure~2.1).
+\shot{2_mutex_sem.png}{mutex and sem: always 2000000}
+
+\section{A semaphore that starts at 2}
+With \texttt{-DSTART=2} the semaphore starts at 2. The result is wrong again: 1\,993\,053, 1\,838\,146 and 1\,672\,013 (Figure~2.2). Both threads pass \texttt{sem\_wait} together (2$\to$1, 1$\to$0), so with only two threads the lock never stops anyone. It loses fewer additions than \texttt{race} only because the extra calls between two increments make the overlaps rarer.
+\shot{2_sem2.png}{sem.c with sem\_init(\&s, 0, 2): the race is back}
+
+\section{The price of the lock}
+Measured with \texttt{time} (Figure~2.3): \texttt{race} 0.009~s (wrong), \texttt{mutex} 0.232~s, \texttt{sem} 0.267~s. The order is the one the brief gives. The optional \texttt{atomic.c} is also always right, in 0.076~s.
+\shot{2_time.png}{The price of correctness: race, mutex, sem and atomic}
+
+\texttt{strace} shows where the time goes (Figure~2.4). Two threads fight for the mutex two million times; whenever one finds it taken, it asks the kernel to sleep with the \texttt{futex} system call, and the owner wakes it with another one. \texttt{mutex} makes \textbf{10\,759} \texttt{futex} calls, \texttt{race} makes only 2. That is the \texttt{sys} time of 0.140~s that \texttt{race} does not have.
+\shot{2_futex.png}{Counting futex calls: mutex against race}
+
+\section*{Observe 2}
+\textbf{1. Is the answer always 2\,000\,000?} Yes, in all three runs of \texttt{mutex} and all three of \texttt{sem} (Figure~2.1).
+
+\textbf{2. What happens with sem\_init(\&s, 0, 2)?} The answer is wrong again (Figure~2.2): a semaphore that starts at 2 lets two threads into the critical section at once, so it no longer excludes anyone.
+
+\textbf{3. Why is the locked version slower?} Every lock and unlock is an atomic read-modify-write instruction that forces the cache line to travel between the cores; a thread that finds the lock taken enters the kernel through \texttt{futex} to sleep and must be woken by another system call (10\,759 of them); and only one thread at a time makes progress on the counter. \texttt{atomic\_fetch\_add} compiles to a single \texttt{lock addq} instruction: it also serialises the cores, but never sleeps and never enters the kernel, so it is about three times faster than the mutex.
+
+\chapter{A semaphore as a signal}
+
+\section{B waits for A}
+In \texttt{order.c} the semaphore \texttt{ready} starts at 0. B is created first and prints its line at once, then sleeps in \texttt{sem\_wait}; one second later A writes the message and calls \texttt{sem\_post}, and B reads \texttt{"hello"} (Figure~3.1, first run, \texttt{real 1.003~s}). With \texttt{-DSTART=1} (second run) B does not wait at all: it reads an empty string, and only then does A write.
+\shot{3_order.png}{order.c with start value 0, then with start value 1}
+
+\section*{Observe 3}
+\textbf{1. Start value 1: what does B read, and why?}
+B reads \texttt{""}. The semaphore already holds one unit, so B's \texttt{sem\_wait} takes it and returns immediately, a second before A writes anything; \texttt{message} is a global array, still all zeros. The semaphore announced an event that had not happened.
+
+\textbf{2. What does a semaphore that starts at 0 mean?}
+It means ``the event has not happened yet'': whoever calls \texttt{sem\_wait} sleeps until another thread announces the event with \texttt{sem\_post}.
+
+\chapter{A semaphore as a counter: the parking lot}
+
+\section{Six cars, three places}
+\texttt{parking.c} starts six cars; the semaphore \texttt{places} starts at 3 and counts free places. Three cars enter, the others wait, and every car that leaves lets exactly one more in (Figure~4.1). The run takes 2.003~s: two waves of one second.
+\shot{4_parking.png}{parking.c: never more than three cars inside}
+
+To check the maximum over more than one run, ten runs were counted (Figure~4.2): 120 lines, 23 of them with \texttt{inside: 3}, and no value above 3.
+\shot{4_parking_10runs.png}{Values of ``inside'' over ten runs}
+
+\section{One place}
+With \texttt{-DPLACES=1} only one car is ever inside, each \texttt{enters} is followed by its own \texttt{leaves}, and the six cars take 6.004~s (Figure~4.3).
+\shot{4_parking1.png}{PLACES = 1: the semaphore is a mutex}
+
+\section*{Observe 4}
+\textbf{1. What is the largest value of ``inside''? Which line guarantees it?}
+3. The line is \texttt{sem\_wait(\&places);} in \texttt{car()}, with \texttt{sem\_init(\&places, 0, PLACES)}: each entering car takes one of the 3 units, and the fourth car sleeps in \texttt{sem\_wait} until a leaving car returns a unit with \texttt{sem\_post}.
+
+\textbf{2. Set PLACES to 1. What does the semaphore become?}
+A mutex, a binary semaphore, the same lock as in \texttt{sem.c}: cars park strictly one at a time.
+
+\section*{Answers in brief}
+\begin{tabular}{@{}p{0.30\linewidth}p{0.14\linewidth}p{0.48\linewidth}@{}}
+\toprule
+Role of the semaphore & Start value & Result \\
+\midrule
+Lock (\texttt{sem.c}) & 1 & always 2\,000\,000; with 2 the race returns \\
+Signal (\texttt{order.c}) & 0 & B reads only after A writes; with 1, B reads \texttt{""} \\
+Counter (\texttt{parking.c}) & 3 & never more than 3 inside; with 1 it is a mutex \\
+\bottomrule
+\end{tabular}
+
+\utmconclusions
+A data race is invisible in the source and obvious in the machine code: \texttt{counter++} is a load, an add and a store, and two threads that interleave them overwrite each other. Without protection two threads lost close to half of two million additions, and never the same number twice.
+
+A semaphore is one number with two operations, and its start value decides its job. Starting at 1 it is a lock that made every run exact; starting at 2 the same code was wrong again. Starting at 0 it is a signal that made B wait exactly one second for A; starting at 1 it let B read an empty message. Starting at 3 it counted the parking places, and at 1 it turned back into a lock.
+
+Correctness has a price that can be measured. The locked counters were about 25 times slower than the wrong one, and strace showed why: more than ten thousand trips into the kernel through \texttt{futex} to sleep and wake the waiting thread. A single atomic instruction is the cheaper choice for a lone counter; a semaphore or a mutex is needed as soon as the protected work is more than one instruction.
+
+\end{document}

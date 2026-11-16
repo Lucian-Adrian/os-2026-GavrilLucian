@@ -1,0 +1,143 @@
+From 62c9d9aa4c6fe27211fbf996fa31615fb000a390 Mon Sep 17 00:00:00 2001
+From: Gavril Lucian-Adrian <lucian-adrian.gavril@isa.utm.md>
+Date: Mon, 16 Nov 2026 16:27:18 +0200
+Subject: [PATCH 3/4] lab13 part 2: kernel semaphores in kernel/sem.c, wired
+ into the syscall table
+
+---
+ Makefile         |  1 +
+ kernel/sem.c     | 77 ++++++++++++++++++++++++++++++++++++++++++++++++
+ kernel/syscall.c |  7 +++++
+ 3 files changed, 85 insertions(+)
+ create mode 100644 kernel/sem.c
+
+diff --git a/Makefile b/Makefile
+index 0f334ae..5c35bba 100644
+--- a/Makefile
++++ b/Makefile
+@@ -18,6 +18,7 @@ OBJS = \
+   $K/trap.o \
+   $K/syscall.o \
+   $K/sysproc.o \
++  $K/sem.o \
+   $K/bio.o \
+   $K/fs.o \
+   $K/log.o \
+diff --git a/kernel/sem.c b/kernel/sem.c
+new file mode 100644
+index 0000000..b1d3f44
+--- /dev/null
++++ b/kernel/sem.c
+@@ -0,0 +1,77 @@
++// sem.c: counting semaphores inside the xv6 kernel (Lab 13).
++// A small table of NSEM semaphores, shared by every process.
++// Each one is a number plus a spinlock that protects the number.
++
++#include "types.h"
++#include "riscv.h"
++#include "defs.h"
++#include "param.h"
++#include "spinlock.h"
++#include "proc.h"
++
++#define NSEM 8
++
++struct sem {
++  struct spinlock lock;   // a zeroed spinlock is a free spinlock
++  int value;              // how many may still pass
++};
++
++static struct sem sems[NSEM];
++
++// sem_init(id, value): give semaphore id its start value.
++uint64
++sys_sem_init(void)
++{
++  int id, value;
++  argint(0, &id);
++  argint(1, &value);
++  if (id < 0 || id >= NSEM || value < 0)
++    return -1;
++  acquire(&sems[id].lock);
++  sems[id].value = value;
++  release(&sems[id].lock);
++  return 0;
++}
++
++// sem_down(id): take one unit; if there is none, sleep until there is.
++uint64
++sys_sem_down(void)
++{
++  int id;
++  argint(0, &id);
++  if (id < 0 || id >= NSEM)
++    return -1;
++  struct sem *s = &sems[id];
++
++  acquire(&s->lock);
++  while (s->value == 0) {
++    sleep_prepare(s);       // I will sleep on the address of s
++    release(&s->lock);      // never sleep holding a spinlock
++    sleep();                // returns at once if sem_up came in between
++    acquire(&s->lock);
++    if (killed(myproc())) { // kill must still work on a waiting process
++      release(&s->lock);
++      return -1;
++    }
++  }
++  s->value--;
++  release(&s->lock);
++  return 0;
++}
++
++// sem_up(id): give one unit back and wake whoever sleeps on s.
++uint64
++sys_sem_up(void)
++{
++  int id;
++  argint(0, &id);
++  if (id < 0 || id >= NSEM)
++    return -1;
++  struct sem *s = &sems[id];
++
++  acquire(&s->lock);
++  s->value++;
++  wakeup(s);
++  release(&s->lock);
++  return 0;
++}
+diff --git a/kernel/syscall.c b/kernel/syscall.c
+index d61cf53..ee7d2b0 100644
+--- a/kernel/syscall.c
++++ b/kernel/syscall.c
+@@ -103,6 +103,9 @@ extern uint64 sys_link(void);
+ extern uint64 sys_mkdir(void);
+ extern uint64 sys_close(void);
+ extern uint64 sys_sync(void);
++extern uint64 sys_sem_init(void);
++extern uint64 sys_sem_down(void);
++extern uint64 sys_sem_up(void);
+ extern uint64 sys_trace(void);
+ extern uint64 sys_sysinfo(void);
+ 
+@@ -132,6 +135,9 @@ static uint64 (*syscalls[])(void) = {
+   [SYS_mkdir]   = sys_mkdir,
+   [SYS_close]   = sys_close,
+   [SYS_sync]    = sys_sync,
++  [SYS_sem_init] = sys_sem_init,
++  [SYS_sem_down] = sys_sem_down,
++  [SYS_sem_up]   = sys_sem_up,
+   [SYS_trace]   = sys_trace,
+   [SYS_sysinfo] = sys_sysinfo,
+   // clang-format on
+@@ -146,6 +152,7 @@ static char *syscallnames[] = {
+   [SYS_write] "write", [SYS_mknod] "mknod",   [SYS_unlink] "unlink",
+   [SYS_link] "link",   [SYS_mkdir] "mkdir",   [SYS_close] "close",
+   [SYS_sync] "sync",   [SYS_trace] "trace", [SYS_sysinfo] "sysinfo",
++  [SYS_sem_init] "sem_init", [SYS_sem_down] "sem_down", [SYS_sem_up] "sem_up",
+ };
+ 
+ void
+-- 
+2.47.3
+

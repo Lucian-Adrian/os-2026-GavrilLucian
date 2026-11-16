@@ -1,0 +1,25 @@
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ semtest
+parent: done, I let the child go
+child: I ran after the parent
+ping 1
+  pong 1
+ping 2
+  pong 2
+ping 3
+  pong 3
+semtest: OK
+$ semtest
+parent: done, I let the child go
+child: I ran after the parent
+ping 1
+  pong 1
+ping 2
+  pong 2
+ping 3
+  pong 3
+semtest: OK

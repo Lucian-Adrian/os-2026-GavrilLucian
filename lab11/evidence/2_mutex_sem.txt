@@ -1,0 +1,14 @@
+$ gcc -Wall -pthread -o mutex mutex.c
+$ gcc -Wall -pthread -o sem sem.c
+$ ./mutex
+counter = 2000000 (expected 2000000)
+$ ./mutex
+counter = 2000000 (expected 2000000)
+$ ./mutex
+counter = 2000000 (expected 2000000)
+$ ./sem
+counter = 2000000 (expected 2000000)
+$ ./sem
+counter = 2000000 (expected 2000000)
+$ ./sem
+counter = 2000000 (expected 2000000)

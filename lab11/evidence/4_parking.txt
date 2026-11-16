@@ -1,0 +1,17 @@
+$ gcc -Wall -pthread -o parking parking.c
+$ time ./parking
+car 2 enters (inside: 1)
+car 1 enters (inside: 2)
+car 3 enters (inside: 3)
+car 2 leaves (inside: 2)
+car 4 enters (inside: 3)
+car 1 leaves (inside: 2)
+car 3 leaves (inside: 1)
+car 5 enters (inside: 2)
+car 6 enters (inside: 3)
+car 4 leaves (inside: 2)
+car 6 leaves (inside: 1)
+car 5 leaves (inside: 0)
+real	2.003
+user	0.004
+sys	0.000

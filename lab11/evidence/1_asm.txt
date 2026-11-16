@@ -1,0 +1,4 @@
+$ gcc -S -o - race.c | grep -B1 -A1 'addq'
+	movq	counter(%rip), %rax
+	addq	$1, %rax
+	movq	%rax, counter(%rip)

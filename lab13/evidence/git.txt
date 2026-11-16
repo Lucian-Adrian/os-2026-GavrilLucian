@@ -1,0 +1,22 @@
+$ git log --oneline -9
+902909f lab13 optional: sem_trydown (27) and the trydown test
+62c9d9a lab13 part 2: kernel semaphores in kernel/sem.c, wired into the syscall table
+a962830 lab13 part 1: user side of sem_init, sem_down, sem_up (24-26), semtest and mix
+196eb0c lab13: move sysinfo from 24 to 28, the brief gives 24-26 to the semaphores
+fab827f lab10 optional: sysinfo system call (SYS 24)
+76fd071 lab10 trace.c
+d255a94 lab10 trace
+fa2ddcb usertests: bound the zero-length pipe read regression test
+ffe25cb pipe: avoid blocking on zero-length reads
+$ git status --short | wc -l
+0
+$ git diff --stat lab10 HEAD | tail -1
+ 9 files changed, 212 insertions(+), 1 deletion(-)
+$ grep -n 'SYS_' kernel/syscall.h | tail -7
+23:#define SYS_sync   22
+24:#define SYS_trace  23
+25:#define SYS_sem_init 24   // Lab 13
+26:#define SYS_sem_down 25   // Lab 13
+27:#define SYS_sem_up   26   // Lab 13
+28:#define SYS_sem_trydown 27  // Lab 13 optional
+29:#define SYS_sysinfo 28   // was 24 in Lab 10; 24-27 are the Lab 13 semaphores

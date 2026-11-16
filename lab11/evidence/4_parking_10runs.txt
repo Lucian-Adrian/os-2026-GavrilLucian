@@ -1,0 +1,5 @@
+$ for i in $(seq 10); do ./parking; done | grep -o 'inside: [0-9]' | sort | uniq -c
+     16 inside: 0
+     37 inside: 1
+     44 inside: 2
+     23 inside: 3

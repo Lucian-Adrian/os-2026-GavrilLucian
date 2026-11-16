@@ -1,0 +1,11 @@
+$ gcc -Wall -pthread -o race race.c
+$ ./race
+counter = 1214868 (expected 2000000)
+$ ./race
+counter = 1085564 (expected 2000000)
+$ ./race
+counter = 1031688 (expected 2000000)
+$ ./race
+counter = 1019785 (expected 2000000)
+$ ./race
+counter = 1014123 (expected 2000000)

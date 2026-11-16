@@ -1,0 +1,13 @@
+$ gcc -Wall -pthread -o order order.c
+$ time ./order
+B: waiting for the message...
+A: message written
+B: I read "hello"
+real	1.003
+user	0.002
+sys	0.000
+$ gcc -Wall -pthread -DSTART=1 -o order1 order.c
+$ ./order1
+B: waiting for the message...
+B: I read ""
+A: message written

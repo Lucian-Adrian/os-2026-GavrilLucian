@@ -1,0 +1,18 @@
+$ gcc -Wall -pthread -o prodcons prodcons.c
+$ ./prodcons
+put 1    (in buffer: 1)
+put 2    (in buffer: 2)
+put 3    (in buffer: 3)
+put 4    (in buffer: 4)
+            take 1   (in buffer: 3)
+put 5    (in buffer: 4)
+            take 2   (in buffer: 3)
+put 6    (in buffer: 4)
+            take 3   (in buffer: 3)
+put 7    (in buffer: 4)
+            take 4   (in buffer: 3)
+put 8    (in buffer: 4)
+            take 5   (in buffer: 3)
+            take 6   (in buffer: 2)
+            take 7   (in buffer: 1)
+            take 8   (in buffer: 0)

@@ -1,0 +1,114 @@
+\documentclass{assets/utmreport}
+
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
+\usepackage{tikz}\usetikzlibrary{positioning,arrows.meta}
+\usepackage{newunicodechar}
+\newfontfamily\diafont{Liberation Serif}
+\newunicodechar{ș}{{\diafont ș}}\newunicodechar{ț}{{\diafont ț}}\newunicodechar{Ș}{{\diafont Ș}}\newunicodechar{Ț}{{\diafont Ț}}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{assets/utm-logo.jpeg}
+
+\institution{Technical University of Moldova}
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+\department{Department of Software Engineering}
+\studyprogramme{Software Engineering Study Programme}
+\documenttype{Report on laboratory work no. 13}
+\reporttitle{Operating Systems}
+\reportsubtitle{Semaphores in Your Own Kernel (xv6)}
+\student{Lucian-Adrian Gavril}{FAF-241}
+\supervisor{Reițman Patricia}{univ. assist.}
+\cityyear{Chișinău}{2026}
+
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,frame=single,framerule=0.4pt,xleftmargin=1em,xrightmargin=1em}
+
+\begin{document}
+\sloppy
+\makeutmreporttitlepage
+{\small\tableofcontents}
+\clearpage
+
+\utmintroduction
+\textbf{Purpose of the work.} In Labs~11 and~12 semaphores came from the C library. Here they are built inside the xv6 kernel as three new system calls, \texttt{sem\_init}, \texttt{sem\_down} and \texttt{sem\_up} (numbers 24, 25 and 26), to show that a semaphore is only a number, a spinlock that protects it, and the kernel's \texttt{sleep} and \texttt{wakeup}. The new calls are tested by ordering two processes, by a strict ping-pong, and by using a semaphore as a lock around a line printed one byte at a time. The optional fourth call, \texttt{sem\_trydown} (27), is also implemented.
+
+\textbf{Environment.} Debian GNU/Linux 13, \texttt{riscv64-linux-gnu} GCC 14.2, QEMU 10.0, \texttt{make qemu} with the default 3 CPUs. xv6 is upstream \texttt{mit-pdos/xv6-riscv} at \texttt{fa2ddcb} with my three Lab~10 commits (\texttt{trace} as 23 and the optional \texttt{sysinfo}) and four Lab~13 commits on top. The brief gives 24 to \texttt{sem\_init}, and my Lab~10 \texttt{sysinfo} used 24, so the first Lab~13 commit moves \texttt{sysinfo} to 28. \texttt{trace} keeps 23, which turns out to be useful: it can watch the new calls. The Lab~13 change is in \texttt{lab13.patch} (9 files, 212 lines added, 1 changed), the whole change against clean upstream in \texttt{lab10-13.patch}, and the commits in \texttt{xv6-commits/}. Every terminal figure is the real console output of a QEMU session, captured as text in \texttt{evidence/}.
+
+\chapter{The numbers and the user side}
+
+\section{Four edits}
+\texttt{kernel/syscall.h} receives the three numbers, \texttt{user/user.h} the three declarations, \texttt{user/usys.pl} three \texttt{entry} lines, and the \texttt{Makefile} the two test programs \texttt{\_semtest} and \texttt{\_mix}. \texttt{usys.pl} generates a three-instruction stub for each call (Figure~1.1): the number goes into register \texttt{a7}, \texttt{ecall} enters the kernel, and \texttt{ret} returns with the result in \texttt{a0}. This is exactly the path that \texttt{trace} followed in Lab~10.
+\shot{usys_stub.png}{The generated stub of sem\_init in user/usys.S}
+
+The two programs are those of the brief. \texttt{semtest} runs two tests: the child must wait on semaphore 0 (start value 0) until the parent posts, and a parent and a child print \texttt{ping} and \texttt{pong} in turn, passing the turn through semaphores 1 and 2. \texttt{mix} forks and lets both processes print five lines of 30 letters, one \texttt{write} per byte, optionally under semaphore 3.
+
+\section{Check 1: the calls reach a kernel that does not know them}
+Before any kernel code exists, \texttt{semtest} prints exactly the lines of the brief (Figure~1.2): \texttt{3 semtest: unknown sys call 24} and \texttt{4 semtest: unknown sys call 25}, from the parent (pid 3) and the child (pid 4). Each call returns $-1$ and nothing waits, so \texttt{child: I ran after the parent} comes \emph{before} \texttt{parent: done}: the child did not wait for anything. Ping and pong are mixed with error lines, and even with each other, because nothing orders the two processes.
+\shot{check1.png}{Check 1: unknown sys call 24 and 25, and the child runs first}
+
+\chapter{The kernel side}
+
+\section{kernel/sem.c}
+The new file holds a table of eight semaphores shared by all processes. Each is a value and a spinlock that protects it. \texttt{sem\_init} checks the id and the value and stores the value under the lock. \texttt{sem\_up} adds one and calls \texttt{wakeup(s)} under the lock. \texttt{sem\_down} is the heart:
+\lstinputlisting[language=C,firstline=37,lastline=60]{kernel/sem.c}
+While the value is 0, the process registers the address \texttt{s} as the channel it waits for (\texttt{sleep\_prepare}), releases the spinlock, and sleeps. When it wakes up it takes the lock again and checks the value again. A process killed while it waits returns $-1$ instead of sleeping forever. \texttt{sem.o} is added to \texttt{OBJS} in the \texttt{Makefile}, and the three handlers to the \texttt{syscalls[]} table in \texttt{kernel/syscall.c}. They are also added to the name table of my Lab~10 \texttt{trace}, so that \texttt{trace} can print them by name.
+
+\section{Check 2: semtest}
+\texttt{semtest} now prints exactly the expected lines, in two runs one after the other (Figure~2.1). The parent pauses 10 ticks before posting, and the child still prints second: it was asleep in \texttt{sem\_down}. Ping and pong alternate strictly three times each, and the test ends with \texttt{semtest: OK}.
+\shot{check2.png}{Check 2: the child after the parent, strict ping-pong, semtest: OK}
+
+\section{Watching the calls with trace}
+Mask $2^{24}+2^{25}+2^{26} = 117440512$ makes my Lab~10 \texttt{trace} print only the three new calls (Figure~2.2). The child's \texttt{10: syscall sem\_down -> 0} appears only \emph{after} the parent's \texttt{9: syscall sem\_up -> 0}. The child entered \texttt{sem\_down} at the start, and the call could only return once the parent posted. In the ping-pong part each \texttt{sem\_up} of one process is followed by the \texttt{sem\_down} of the other returning.
+\shot{trace.png}{trace 117440512 semtest: only sem\_init, sem\_down and sem\_up}
+
+\section{The waiting process really sleeps}
+Ctrl-P, pressed during the parent's \texttt{pause(10)}, makes the xv6 console print the process table (Figure~2.3, second command). Both \texttt{semtest} processes are in state \texttt{sleep}: pid 4, the parent, in \texttt{pause}, and pid 5, the child, in \texttt{sem\_down}. A waiting process is not running and uses no CPU, unlike a spinlock, which waits by looping.
+\shot{optional.png}{The optional sem\_trydown, and Ctrl-P during semtest: both processes sleep}
+
+\chapter{A semaphore as a lock: mix}
+
+\section{With and without the lock}
+Without the lock, two runs of \texttt{mix} mix the letters of the two processes differently each time (Figure~3.1, first two runs). Lines are cut, and lines with only \texttt{A}, only \texttt{b} or both letters alternate. With \texttt{mix lock} every line is whole: ten lines of 30 identical letters. The order of the lines still depends on which process gets the semaphore first (A A b b b A b b A A in this run).
+\shot{mix.png}{mix twice without the lock, then mix lock}
+
+\section{Two experiments on the kernel code}
+Observe~3 and~4 ask what would go wrong if \texttt{sem\_down} were written differently. Both answers were tested on a temporary copy of \texttt{kernel/sem.c}, restored afterwards. The diffs are in \texttt{experiments/}, and the committed tree is unchanged.
+
+\textbf{\texttt{if} instead of \texttt{while}.} The program \texttt{experiments/wakeall.c} lets three children sleep on semaphore 5, which starts at 0. The parent then calls \texttt{sem\_up(5)} \emph{once}, and later twice more. With the correct \texttt{while}, exactly one child passes after the first \texttt{sem\_up} and the other two only after the next two (Figure~3.2). With \texttt{if}, all three children pass after the single \texttt{sem\_up} (Figure~3.3). The semaphore had one unit and let three processes through, so its value went down to $-2$. The children's \texttt{printf}s are mixed together for the same reason as in \texttt{mix}: xv6's \texttt{printf} writes one character per system call.
+\shot{wakeall_while.png}{wakeall with while: one sem\_up lets exactly one child pass}
+\shot{wakeall_if.png}{wakeall with if: one sem\_up lets all three children pass}
+
+\textbf{Sleeping with the spinlock held.} With the \texttt{release} before \texttt{sleep()} and the \texttt{acquire} after it removed, the kernel stops at the first \texttt{sem\_down} that has to wait (Figure~3.4): \texttt{panic: sched locks}.
+\shot{holdlock.png}{sem\_down sleeping with s->lock held: the kernel panics}
+
+\section*{Observe answers}
+\textbf{1. Without the lock, why do the letters mix? How many system calls does one line cost?}
+A line is 30 letters and a newline, written one byte per \texttt{write()}: \textbf{31 system calls} per line, 155 per process. The kernel completes each \texttt{write} as a unit, but nothing keeps 31 separate calls together. The two processes run at the same time on different harts (3 CPUs), and the timer can also switch them between two calls, so their single-byte writes alternate in a different pattern on every run.
+
+\textbf{2. Which two lines of mix.c make one line a critical section?}
+\texttt{sem\_down(3);} before the loop that writes the line, and \texttt{sem\_up(3);} after it (each under \texttt{if (uselock)}). Semaphore 3 starts at 1 (\texttt{sem\_init(3, 1)}), so only one process at a time can be between them, and its 31 writes cannot be interleaved.
+
+\textbf{3. Why can a process wake up and still find 0?}
+\texttt{wakeup(s)} wakes \emph{every} process sleeping on the channel \texttt{s}, but \texttt{sem\_up} added only one unit. The first woken process to get \texttt{s->lock} takes it, and the others find 0 when they get the lock and must sleep again. A process that was not sleeping at all can also enter \texttt{sem\_down} between the wake-up and the moment the woken process runs, and take the unit first. A process can also return from \texttt{sleep()} because it was killed. The \texttt{wakeall} experiment shows the result of \texttt{if}: one \texttt{sem\_up}, three processes through.
+
+\textbf{4. What would go wrong if sem\_down slept holding the spinlock?}
+\texttt{sem\_up} needs \texttt{s->lock} to add one and call \texttt{wakeup}. If the sleeping process kept it, the process calling \texttt{sem\_up} would spin forever in \texttt{acquire}, and the sleeper would never be woken: a deadlock inside the kernel, with a CPU burning in the spin loop. xv6 refuses to go that far. Holding a spinlock disables interrupts on the CPU, and \texttt{sched()} checks that \texttt{p->lock} is the only lock held. With \texttt{s->lock} still held it panics with \texttt{sched locks}, as in Figure~3.4. Releasing \emph{before} \texttt{sleep()} does not lose a wake-up, because of \texttt{sleep\_prepare(s)}. It records \texttt{p->chan = s} while the lock is still held. If \texttt{sem\_up} runs between the release and \texttt{sleep()}, its \texttt{wakeup} clears \texttt{p->chan}, and \texttt{sleep()} sees 0 and returns at once.
+
+\chapter{Optional: sem\_trydown}
+\texttt{sem\_trydown(id)}, number 27, is \texttt{sem\_down} without the loop. Under the lock it takes a unit if the value is positive and returns 0, and otherwise it returns $-1$ at once without sleeping. The program \texttt{trydown} initialises semaphore 4 to 2 and calls it three times (Figure~2.3, first command). The results are 0, 0 and $-1$, after \texttt{sem\_up(4)} 0 again, and $-1$ for a bad id, from \texttt{sem\_trydown(9)} as from \texttt{sem\_down(-1)}.
+
+\chapter{The committed xv6 tree}
+The brief asks for the modified xv6 tree committed to git. Lab~13 adds four commits on top of the three Lab~10 commits, one per stage (Figure~5.1): the move of \texttt{sysinfo} to 28, the user side (Check~1), the kernel side (Check~2) and the optional \texttt{sem\_trydown}. The working tree is clean, and \texttt{kernel/syscall.h} ends with the numbers 22 to 28 in order. \texttt{git format-patch} exports the four commits to \texttt{xv6-commits/}. To rebuild the whole tree, apply \texttt{lab10-13.patch} to a clean upstream checkout.
+\shot{git.png}{The committed tree: four Lab 13 commits on the Lab 10 ones, clean status}
+
+\utmconclusions
+A semaphore in the kernel turned out to be small: an integer, a spinlock and two existing kernel functions. The user side is the same three-instruction stub as for \texttt{trace}, and Check~1 showed numbers 24 and 25 arriving in a kernel that did not know them yet, with the child running before the parent because nothing made it wait.
+
+The value of the semaphore decides who runs, and \texttt{sleep}/\texttt{wakeup} decides that a waiting process costs nothing. After Part~2 the child always printed after the parent, ping and pong alternated strictly, \texttt{trace} showed \texttt{sem\_down} returning only after the matching \texttt{sem\_up}, and the process table showed the waiting child in state \texttt{sleep}. Semaphore 3, started at 1, kept every line of \texttt{mix} whole, although each line costs 31 system calls.
+
+The two details the brief asks about are not style. Both were broken on purpose, and both failures were visible. With \texttt{if} instead of \texttt{while}, one \texttt{sem\_up} let three processes through. Sleeping with the spinlock held made the kernel panic with \texttt{sched locks}. The order \texttt{sleep\_prepare}, \texttt{release}, \texttt{sleep}, \texttt{acquire} is what makes a semaphore both correct and free of lost wake-ups.
+
+\end{document}

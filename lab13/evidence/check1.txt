@@ -1,0 +1,32 @@
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ semtest
+3 semtest: unknown sys call 24
+4 semtest: unknown sys call 25
+child: I ran after the parent
+parent: done, I let the child go
+3 semtest: unknown sys call 26
+3 semtest: unknown sys call 24
+3 semtest: unknown sys call 24
+3 semtest: unknown sys call 25
+pin5 semtest: unknown sys call 25
+g  1 
+3 semtest: unknown sys call 26
+p3 semtest: unknown sys call 25
+onpg ing 12
+
+3 semtest: unknown sys call 26
+5 semtest: unknown sys call 26
+5 semtest: unknown sys call 25
+ 3 semtest: unknown sys call 25
+ pong 2
+5 semtest: unknown sys call 26
+p5 semtest: unknown sys call 25
+i n gp o3n
+3 semtest: unknown sys call 26
+g 3
+5 semtest: unknown sys call 26
+semtest: OK

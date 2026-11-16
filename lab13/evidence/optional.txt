@@ -1,0 +1,26 @@
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ trydown
+try 1: sem_trydown(4) = 0
+try 2: sem_trydown(4) = 0
+try 3: sem_trydown(4) = -1
+after sem_up(4): sem_trydown(4) = 0
+bad id: sem_trydown(9) = -1, sem_down(-1) = -1
+$ semtest
+
+1 sleep  init
+2 sleep  sh
+4 sleep  semtest
+5 sleep  semtest
+parent: done, I let the child go
+child: I ran after the parent
+ping 1
+  pong 1
+ping 2
+  pong 2
+ping 3
+  pong 3
+semtest: OK

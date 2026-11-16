@@ -1,0 +1,8 @@
+$ gcc -Wall -pthread -o deadlock deadlock.c
+$ timeout 5 ./deadlock; echo "exit code: $?"
+two: I have A, I want B
+two: I have both
+one: I have A, I want B
+one: I have both
+done
+exit code: 0

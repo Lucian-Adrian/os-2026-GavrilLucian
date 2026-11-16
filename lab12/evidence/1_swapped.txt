@@ -1,0 +1,7 @@
+$ gcc -Wall -pthread -DSWAPPED -o prodcons_swapped prodcons.c
+$ timeout 5 ./prodcons_swapped; echo "exit code: $?"
+put 1    (in buffer: 1)
+put 2    (in buffer: 2)
+put 3    (in buffer: 3)
+put 4    (in buffer: 4)
+exit code: 124

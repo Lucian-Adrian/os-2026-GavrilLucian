@@ -1,0 +1,68 @@
+Lab 13 - Semaphores in Your Own Kernel (xv6)
+Lucian-Adrian Gavril, FAF-241.
+xv6 = upstream mit-pdos/xv6-riscv (fa2ddcb) + my Lab 10 commits + the four Lab 13 commits
+in xv6-commits/. lab13.patch is the Lab 13 diff on top of Lab 10; lab10-13.patch is the
+whole diff against clean upstream. RISC-V GCC 14.2, QEMU 10.0, make qemu with CPUS=3.
+
+Numbers: sem_init 24, sem_down 25, sem_up 26, optional sem_trydown 27.
+My Lab 10 optional sysinfo had taken 24, so it moved to 28 (first commit); trace stays 23.
+
+Check 1 (user side only): "3 semtest: unknown sys call 24", "4 semtest: unknown sys call 25",
+   then "child: I ran after the parent" BEFORE "parent: done, I let the child go".
+Check 2 (kernel side): parent line, then child line, ping 1 / pong 1 / ping 2 / pong 2 /
+   ping 3 / pong 3, "semtest: OK" - the same on every run.
+   Ctrl-P during the parent's pause(10) shows both semtest processes in state "sleep":
+   the child waits inside sem_down and uses no CPU.
+   "trace 117440512 semtest" (bits 24, 25, 26) shows the child's "sem_down -> 0"
+   returning only after the parent's "sem_up -> 0".
+
+Part 3 - Observe
+
+1. Without the lock, why do the letters mix? (How many system calls does one line cost?)
+   One line is 30 letters + '\n' = 31 bytes, written one byte per write(), so one line
+   costs 31 system calls (5 lines = 155 per process, 310 for both). The kernel makes each
+   single write() whole (the console lock covers one call), but nothing holds a line
+   together across 31 calls. The two processes run at the same time on different harts
+   (CPUS=3), and the timer can also switch them between two calls, so A's and b's writes
+   alternate: "AAAAAAAbAAAAbAAAbbAbbbb...". The mix is different on every run.
+
+2. With the lock every line is whole. Which two lines of mix.c make one line a critical section?
+       if (uselock)
+         sem_down(3);        <- before the loop that writes the 31 bytes
+       ...
+       if (uselock)
+         sem_up(3);          <- after the '\n'
+   Semaphore 3 starts at 1 (sem_init(3, 1)), so it is a lock: only one process at a time
+   is between sem_down(3) and sem_up(3), and its 31 writes cannot be interleaved.
+   The lines of A and b may still come in any order (my run: AA bbb A bb AA), but
+   every line is whole.
+
+3. In sem_down the test is "while (s->value == 0)", not "if". Why can a process wake up and still find 0?
+   wakeup(s) in kernel/proc.c wakes EVERY process whose p->chan == s, but sem_up adds
+   only 1. The first woken process to take s->lock decrements the value to 0; the others
+   get the lock after it and must find 0 again and go back to sleep. A process that was
+   not asleep at all can also call sem_down between the wakeup and the moment the woken
+   one runs, and take the unit first. And a process can come back from sleep() because
+   it was killed, not because of sem_up.
+   Experiment (experiments/wakeall.c): three children sleep on semaphore 5 (value 0), the
+   parent calls sem_up(5) ONCE.
+     with while: exactly one child passes; the other two pass only after two more sem_up.
+     with if   : all three children pass after the single sem_up - the value went to -2,
+                 the semaphore let three through where it had one unit.
+
+4. sem_down calls release(&s->lock) BEFORE sleep(). What would go wrong if it slept holding the spinlock?
+   Two things. (a) sem_up must acquire(&s->lock) to add 1 and call wakeup. If the
+   sleeper keeps that spinlock, the process calling sem_up on another hart spins forever
+   in acquire, so no one can ever wake the sleeper: a deadlock inside the kernel, with
+   a CPU burning in the spin. (b) xv6 forbids it outright: a held spinlock means
+   interrupts are off (push_off), and sched() checks that the only lock held is p->lock.
+   Experiment (experiments/sleep-holding-lock.diff, the release/acquire removed): semtest
+   stopped the kernel at the first sem_down with
+       panic: sched locks
+   It is safe to release BEFORE sleep() thanks to sleep_prepare(s): it records p->chan = s
+   while the lock is still held. If sem_up runs between release and sleep(), its wakeup
+   clears p->chan, and sleep() sees chan == 0 and returns at once, so the wakeup is not lost.
+
+Optional - sem_trydown (SYS 27), user program trydown:
+   sem_init(4, 2); then three sem_trydown(4) -> 0, 0, -1 (the third returns at once,
+   without sleeping); after sem_up(4) -> 0 again; a bad id -> -1 (sem_trydown(9), sem_down(-1)).

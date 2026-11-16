@@ -1,0 +1,10 @@
+$ gcc -Wall -pthread -o condvar condvar.c
+$ ./condvar
+B: not ready, I sleep
+A: message written
+B: I read "hello"
+$ gcc -Wall -pthread -DUSE_IF -o condvar_if condvar.c
+$ ./condvar_if
+B: not ready, I sleep
+A: message written
+B: I read "hello"

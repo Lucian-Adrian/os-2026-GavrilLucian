@@ -1,0 +1,14 @@
+$ gcc -Wall -pthread -DORIGINAL -DNOSLEEP -o deadlock_nosleep deadlock.c
+$ for i in $(seq 10); do
+    timeout 1 ./deadlock_nosleep > /dev/null; echo -n "$? "
+  done; echo
+0 0 124 124 0 0 0 124 124 0 
+$ for i in $(seq 100); do
+    timeout 1 ./deadlock_nosleep > /dev/null && echo finished || echo hung
+  done | sort | uniq -c
+     47 finished
+     53 hung
+$ for i in $(seq 100); do
+    timeout 1 taskset -c 0 ./deadlock_nosleep > /dev/null && echo finished || echo hung
+  done | sort | uniq -c
+    100 finished

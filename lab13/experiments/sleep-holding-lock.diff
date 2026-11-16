@@ -1,0 +1,17 @@
+diff --git a/kernel/sem.c b/kernel/sem.c
+index 077134b..84b3f5c 100644
+--- a/kernel/sem.c
++++ b/kernel/sem.c
+@@ -45,10 +45,8 @@ sys_sem_down(void)
+ 
+   acquire(&s->lock);
+   while (s->value == 0) {
+-    sleep_prepare(s);       // I will sleep on the address of s
+-    release(&s->lock);      // never sleep holding a spinlock
+-    sleep();                // returns at once if sem_up came in between
+-    acquire(&s->lock);
++    sleep_prepare(s);       // EXPERIMENT: sleep while still holding s->lock
++    sleep();
+     if (killed(myproc())) { // kill must still work on a waiting process
+       release(&s->lock);
+       return -1;

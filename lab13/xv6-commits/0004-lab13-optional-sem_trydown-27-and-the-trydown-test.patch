@@ -1,0 +1,143 @@
+From 902909fb027fc727d4963590d2ce9182814fd2e0 Mon Sep 17 00:00:00 2001
+From: Gavril Lucian-Adrian <lucian-adrian.gavril@isa.utm.md>
+Date: Mon, 16 Nov 2026 16:27:59 +0200
+Subject: [PATCH 4/4] lab13 optional: sem_trydown (27) and the trydown test
+
+---
+ Makefile         |  1 +
+ kernel/sem.c     | 21 +++++++++++++++++++++
+ kernel/syscall.c |  3 +++
+ kernel/syscall.h |  1 +
+ user/trydown.c   | 16 ++++++++++++++++
+ user/user.h      |  1 +
+ user/usys.pl     |  1 +
+ 7 files changed, 44 insertions(+)
+ create mode 100644 user/trydown.c
+
+diff --git a/Makefile b/Makefile
+index 5c35bba..8842c99 100644
+--- a/Makefile
++++ b/Makefile
+@@ -150,6 +150,7 @@ UPROGS=\
+ 	$U/_zombie\
+ 	$U/_semtest\
+ 	$U/_mix\
++	$U/_trydown\
+ 	$U/_trace\
+ 	$U/_sysinfo\
+ 	$U/_logstress\
+diff --git a/kernel/sem.c b/kernel/sem.c
+index b1d3f44..077134b 100644
+--- a/kernel/sem.c
++++ b/kernel/sem.c
+@@ -75,3 +75,24 @@ sys_sem_up(void)
+   release(&s->lock);
+   return 0;
+ }
++
++// sem_trydown(id) (optional): like sem_down, but never sleeps.
++// Returns 0 if it took a unit, -1 at once if the value was 0.
++uint64
++sys_sem_trydown(void)
++{
++  int id;
++  argint(0, &id);
++  if (id < 0 || id >= NSEM)
++    return -1;
++  struct sem *s = &sems[id];
++
++  acquire(&s->lock);
++  if (s->value == 0) {
++    release(&s->lock);
++    return -1;
++  }
++  s->value--;
++  release(&s->lock);
++  return 0;
++}
+diff --git a/kernel/syscall.c b/kernel/syscall.c
+index ee7d2b0..2cb3761 100644
+--- a/kernel/syscall.c
++++ b/kernel/syscall.c
+@@ -106,6 +106,7 @@ extern uint64 sys_sync(void);
+ extern uint64 sys_sem_init(void);
+ extern uint64 sys_sem_down(void);
+ extern uint64 sys_sem_up(void);
++extern uint64 sys_sem_trydown(void);
+ extern uint64 sys_trace(void);
+ extern uint64 sys_sysinfo(void);
+ 
+@@ -138,6 +139,7 @@ static uint64 (*syscalls[])(void) = {
+   [SYS_sem_init] = sys_sem_init,
+   [SYS_sem_down] = sys_sem_down,
+   [SYS_sem_up]   = sys_sem_up,
++  [SYS_sem_trydown] = sys_sem_trydown,
+   [SYS_trace]   = sys_trace,
+   [SYS_sysinfo] = sys_sysinfo,
+   // clang-format on
+@@ -153,6 +155,7 @@ static char *syscallnames[] = {
+   [SYS_link] "link",   [SYS_mkdir] "mkdir",   [SYS_close] "close",
+   [SYS_sync] "sync",   [SYS_trace] "trace", [SYS_sysinfo] "sysinfo",
+   [SYS_sem_init] "sem_init", [SYS_sem_down] "sem_down", [SYS_sem_up] "sem_up",
++  [SYS_sem_trydown] "sem_trydown",
+ };
+ 
+ void
+diff --git a/kernel/syscall.h b/kernel/syscall.h
+index e5b6f4e..f71198b 100644
+--- a/kernel/syscall.h
++++ b/kernel/syscall.h
+@@ -25,4 +25,5 @@
+ #define SYS_sem_init 24   // Lab 13
+ #define SYS_sem_down 25   // Lab 13
+ #define SYS_sem_up   26   // Lab 13
++#define SYS_sem_trydown 27  // Lab 13 optional
+ #define SYS_sysinfo 28   // was 24 in Lab 10; 24-27 are the Lab 13 semaphores
+diff --git a/user/trydown.c b/user/trydown.c
+new file mode 100644
+index 0000000..bb65e92
+--- /dev/null
++++ b/user/trydown.c
+@@ -0,0 +1,16 @@
++// trydown.c: the optional sem_trydown (Lab 13). Semaphore 4 starts at 2,
++// so the first two calls take a unit and the third returns -1 at once.
++#include "kernel/types.h"
++#include "user/user.h"
++
++int
++main(void)
++{
++  sem_init(4, 2);
++  for (int i = 1; i <= 3; i++)
++    printf("try %d: sem_trydown(4) = %d\n", i, sem_trydown(4));
++  sem_up(4);
++  printf("after sem_up(4): sem_trydown(4) = %d\n", sem_trydown(4));
++  printf("bad id: sem_trydown(9) = %d, sem_down(-1) = %d\n", sem_trydown(9), sem_down(-1));
++  exit(0);
++}
+diff --git a/user/user.h b/user/user.h
+index 38752e2..ef207c3 100644
+--- a/user/user.h
++++ b/user/user.h
+@@ -28,6 +28,7 @@ int sync(void);
+ int sem_init(int, int);          // Lab 13: id, start value
+ int sem_down(int);               // Lab 13: take one, or sleep
+ int sem_up(int);                 // Lab 13: give one back
++int sem_trydown(int);            // Lab 13 optional: take one, or -1 at once
+ struct sysinfo;
+ int trace(int);
+ int sysinfo(struct sysinfo *);
+diff --git a/user/usys.pl b/user/usys.pl
+index 9efdd8a..e63c3be 100755
+--- a/user/usys.pl
++++ b/user/usys.pl
+@@ -46,5 +46,6 @@ entry("sync");
+ entry("sem_init");
+ entry("sem_down");
+ entry("sem_up");
++entry("sem_trydown");
+ entry("trace");
+ entry("sysinfo");
+-- 
+2.47.3
+

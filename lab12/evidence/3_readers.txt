@@ -1,0 +1,19 @@
+$ gcc -Wall -pthread -o readers readers.c
+$ ./readers
+reader 1 reads 0   (readers inside: 1)
+reader 2 reads 0   (readers inside: 2)
+reader 3 reads 0   (readers inside: 3)
+writer 1 writes 10 (alone)
+writer 2 writes 20 (alone)
+$ ./readers
+writer 1 writes 10 (alone)
+reader 2 reads 10   (readers inside: 1)
+reader 3 reads 10   (readers inside: 2)
+reader 1 reads 10   (readers inside: 3)
+writer 2 writes 20 (alone)
+$ ./readers
+reader 1 reads 0   (readers inside: 1)
+reader 3 reads 0   (readers inside: 3)
+reader 2 reads 0   (readers inside: 2)
+writer 1 writes 10 (alone)
+writer 2 writes 20 (alone)

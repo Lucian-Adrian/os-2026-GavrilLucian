@@ -1,0 +1,6 @@
+$ grep -A4 sem_init: user/usys.S
+sem_init:
+ li a7, SYS_sem_init
+ ecall
+ ret
+.global sem_down

@@ -1,0 +1,12 @@
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ wakeall
+parent: one sem_up
+child cc1hhi plilasdd  sed3 2 p apssem_ased dossemws_ndeow
+dn
+ sem_down
+parent: two more sem_up
+wakeall: done

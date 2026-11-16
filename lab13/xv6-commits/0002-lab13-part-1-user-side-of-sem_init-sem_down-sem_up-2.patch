@@ -1,0 +1,155 @@
+From a96283058ed80b320d0ecd0585d8bed6bf0ae659 Mon Sep 17 00:00:00 2001
+From: Gavril Lucian-Adrian <lucian-adrian.gavril@isa.utm.md>
+Date: Mon, 16 Nov 2026 16:27:09 +0200
+Subject: [PATCH 2/4] lab13 part 1: user side of sem_init, sem_down, sem_up
+ (24-26), semtest and mix
+
+---
+ Makefile         |  2 ++
+ kernel/syscall.h |  3 +++
+ user/mix.c       | 32 ++++++++++++++++++++++++++++++++
+ user/semtest.c   | 39 +++++++++++++++++++++++++++++++++++++++
+ user/user.h      |  3 +++
+ user/usys.pl     |  3 +++
+ 6 files changed, 82 insertions(+)
+ create mode 100644 user/mix.c
+ create mode 100644 user/semtest.c
+
+diff --git a/Makefile b/Makefile
+index fea1f44..0f334ae 100644
+--- a/Makefile
++++ b/Makefile
+@@ -147,6 +147,8 @@ UPROGS=\
+ 	$U/_grind\
+ 	$U/_wc\
+ 	$U/_zombie\
++	$U/_semtest\
++	$U/_mix\
+ 	$U/_trace\
+ 	$U/_sysinfo\
+ 	$U/_logstress\
+diff --git a/kernel/syscall.h b/kernel/syscall.h
+index bb9bd31..e5b6f4e 100644
+--- a/kernel/syscall.h
++++ b/kernel/syscall.h
+@@ -22,4 +22,7 @@
+ #define SYS_close  21
+ #define SYS_sync   22
+ #define SYS_trace  23
++#define SYS_sem_init 24   // Lab 13
++#define SYS_sem_down 25   // Lab 13
++#define SYS_sem_up   26   // Lab 13
+ #define SYS_sysinfo 28   // was 24 in Lab 10; 24-27 are the Lab 13 semaphores
+diff --git a/user/mix.c b/user/mix.c
+new file mode 100644
+index 0000000..bb9aa30
+--- /dev/null
++++ b/user/mix.c
+@@ -0,0 +1,32 @@
++// mix.c: two processes print five lines each, one letter per write().
++//   mix        no lock: the letters of the two processes can mix
++//   mix lock   semaphore 3 used as a lock: every line stays whole
++#include "kernel/types.h"
++#include "user/user.h"
++
++void
++lines(char *s, int uselock)
++{
++  for (int k = 0; k < 5; k++) {
++    if (uselock)
++      sem_down(3);
++    for (char *p = s; *p; p++)
++      write(1, p, 1);
++    if (uselock)
++      sem_up(3);
++  }
++}
++
++int
++main(int argc, char *argv[])
++{
++  int uselock = (argc > 1);
++  sem_init(3, 1);
++  if (fork() == 0) {
++    lines("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n", uselock);
++    exit(0);
++  }
++  lines("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n", uselock);
++  wait(0);
++  exit(0);
++}
+diff --git a/user/semtest.c b/user/semtest.c
+new file mode 100644
+index 0000000..0e2f1f8
+--- /dev/null
++++ b/user/semtest.c
+@@ -0,0 +1,39 @@
++// semtest.c: two tests for the kernel semaphores (Lab 13).
++#include "kernel/types.h"
++#include "user/user.h"
++
++int
++main(void)
++{
++  // Test 1: order. Semaphore 0 starts at 0, so the child must wait.
++  sem_init(0, 0);
++  if (fork() == 0) {
++    sem_down(0);
++    printf("child: I ran after the parent\n");
++    exit(0);
++  }
++  pause(10);
++  printf("parent: done, I let the child go\n");
++  sem_up(0);
++  wait(0);
++
++  // Test 2: ping-pong. Semaphore 1 = ping's turn, semaphore 2 = pong's turn.
++  sem_init(1, 1);
++  sem_init(2, 0);
++  if (fork() == 0) {
++    for (int i = 1; i <= 3; i++) {
++      sem_down(2);
++      printf("  pong %d\n", i);
++      sem_up(1);
++    }
++    exit(0);
++  }
++  for (int i = 1; i <= 3; i++) {
++    sem_down(1);
++    printf("ping %d\n", i);
++    sem_up(2);
++  }
++  wait(0);
++  printf("semtest: OK\n");
++  exit(0);
++}
+diff --git a/user/user.h b/user/user.h
+index e93555d..38752e2 100644
+--- a/user/user.h
++++ b/user/user.h
+@@ -25,6 +25,9 @@ char *sys_sbrk(int, int);
+ int pause(int);
+ int uptime(void);
+ int sync(void);
++int sem_init(int, int);          // Lab 13: id, start value
++int sem_down(int);               // Lab 13: take one, or sleep
++int sem_up(int);                 // Lab 13: give one back
+ struct sysinfo;
+ int trace(int);
+ int sysinfo(struct sysinfo *);
+diff --git a/user/usys.pl b/user/usys.pl
+index a49625b..9efdd8a 100755
+--- a/user/usys.pl
++++ b/user/usys.pl
+@@ -43,5 +43,8 @@ entry("sbrk");
+ entry("pause");
+ entry("uptime");
+ entry("sync");
++entry("sem_init");
++entry("sem_down");
++entry("sem_up");
+ entry("trace");
+ entry("sysinfo");
+-- 
+2.47.3
+

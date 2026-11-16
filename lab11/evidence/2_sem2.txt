@@ -1,0 +1,7 @@
+$ gcc -Wall -pthread -DSTART=2 -o sem2 sem.c
+$ ./sem2
+counter = 1993053 (expected 2000000)
+$ ./sem2
+counter = 1838146 (expected 2000000)
+$ ./sem2
+counter = 1672013 (expected 2000000)
