@@ -34,7 +34,7 @@ The parent blocks in `read(child_to_parent[0], ...)` until the child writes its 
 ![Child ping before parent pong](assets/proof-pingpong.png)
 ## QEMU observations
 
-The programs build cleanly with RISC-V GCC 13.2.0 and boot under QEMU 8.2.2. The original terminal screenshots below and the [recorded session transcript](../lab78/execution-session-2026-10-19.txt) preserve the captured output. The successful run uses a disposable Lab 2 overlay and the Makefile's default three CPUs.
+The programs build cleanly with RISC-V GCC 13.2.0 and boot under QEMU 8.2.2. The original terminal screenshots below and the [recorded session transcript](../lab7-8/execution-session-2026-10-19.txt) preserve the captured output. The successful run uses a disposable Lab 2 overlay and the Makefile's default three CPUs.
 
 Observed in that QEMU session:
 

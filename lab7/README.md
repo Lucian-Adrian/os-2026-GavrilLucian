@@ -2,7 +2,7 @@
 
 This lab follows one command through process creation, program replacement and waiting, then uses file descriptors to reproduce shell redirection and a two-command pipeline.
 
-The measured observations and answers to each required question are in [report.md](report.md). The [recorded execution session](../lab78/execution-session-2026-10-19.txt) preserves the build and run output alongside the screenshots.
+The measured observations and answers to each required question are in [report.md](report.md). The [recorded execution session](../lab7-8/execution-session-2026-10-19.txt) preserves the build and run output alongside the screenshots.
 
 ## Files
 

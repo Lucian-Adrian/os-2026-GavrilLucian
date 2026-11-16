@@ -1,5 +1,5 @@
-From ae42de6a15e88337fe35fb0187ec973e12150cce Mon Sep 17 00:00:00 2001
-From: Lucian-Adrian Gavril <lucianadrian10@gmail.com>
+From fab827f385c60da271c75704ec83f56564437e3b Mon Sep 17 00:00:00 2001
+From: Gavril Lucian-Adrian <lucian-adrian.gavril@isa.utm.md>
 Date: Tue, 3 Nov 2026 01:48:02 +0200
 Subject: [PATCH 3/3] lab10 optional: sysinfo system call (SYS 24)
 
@@ -20,7 +20,7 @@ Subject: [PATCH 3/3] lab10 optional: sysinfo system call (SYS 24)
  create mode 100644 user/sysinfo.c
 
 diff --git a/Makefile b/Makefile
-index ceaf341..cb50d56 100644
+index a737f0c..fea1f44 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -148,6 +148,7 @@ UPROGS=\

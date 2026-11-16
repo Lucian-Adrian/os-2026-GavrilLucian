@@ -22,7 +22,7 @@ Seven original live execution screenshots are in `assets/proof-*.png` and embedd
 
 The canonical xv6 tree is in [Lab 2](../lab2/README.md). The overlay helper never edits it.
 
-The [recorded execution session](../lab78/execution-session-2026-10-19.txt) preserves the actual build, boot and command output from 19 October 2026.
+The [recorded execution session](../lab7-8/execution-session-2026-10-19.txt) preserves the actual build, boot and command output from 19 October 2026.
 
 ## Build and run
 

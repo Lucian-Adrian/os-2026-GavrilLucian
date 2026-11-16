@@ -1,5 +1,5 @@
-From a4aa03c76b0b6c33f72ff29b5e7453bd626329b0 Mon Sep 17 00:00:00 2001
-From: lab <lab@local>
+From 76fd071c74a943229b9a3df2b7af64fb17ea63af Mon Sep 17 00:00:00 2001
+From: Gavril Lucian-Adrian <lucian-adrian.gavril@isa.utm.md>
 Date: Mon, 2 Nov 2026 17:44:52 +0200
 Subject: [PATCH 2/3] lab10 trace.c
 

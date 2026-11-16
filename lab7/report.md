@@ -2,7 +2,7 @@
 
 This lab reconstructs shell command execution in C. Four programs exercise process creation and replacement, child reaping, output redirection and a two-stage pipeline. A three-stage pipeline extends the same descriptor-wiring mechanism.
 
-**Measured environment:** Ubuntu 24.04 under WSL2, kernel `6.18.33.2-microsoft-standard-WSL2`, GCC `13.3.0`. The 19 October 2026 capture session compiled all five programs with `gcc -Wall -Wextra`. The [recorded session transcript](../lab78/execution-session-2026-10-19.txt) accompanies the original screenshots.
+**Measured environment:** Ubuntu 24.04 under WSL2, kernel `6.18.33.2-microsoft-standard-WSL2`, GCC `13.3.0`. The 19 October 2026 capture session compiled all five programs with `gcc -Wall -Wextra`. The [recorded session transcript](../lab7-8/execution-session-2026-10-19.txt) accompanies the original screenshots.
 
 ## Part 1: `fork`, `exec` and `wait`
 
