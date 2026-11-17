@@ -1,8 +1,9 @@
 Lab 13 - Semaphores in Your Own Kernel (xv6)
 Lucian-Adrian Gavril, FAF-241.
 xv6 = upstream mit-pdos/xv6-riscv (fa2ddcb) + my Lab 10 commits + the four Lab 13 commits
-in xv6-commits/. lab13.patch is the Lab 13 diff on top of Lab 10; lab10-13.patch is the
-whole diff against clean upstream. RISC-V GCC 14.2, QEMU 10.0, make qemu with CPUS=3.
+in xv6-commits/. The complete modified tree is in xv6-riscv/ (cd xv6-riscv && make qemu).
+lab13.patch is the Lab 13 diff on top of Lab 10; lab10-13.patch is the whole diff
+against clean upstream. RISC-V GCC 14.2, QEMU 10.0, make qemu with CPUS=3.
 
 Numbers: sem_init 24, sem_down 25, sem_up 26, optional sem_trydown 27.
 My Lab 10 optional sysinfo had taken 24, so it moved to 28 (first commit); trace stays 23.
@@ -20,9 +21,10 @@ Part 3 - Observe
 
 1. Without the lock, why do the letters mix? (How many system calls does one line cost?)
    One line is 30 letters + '\n' = 31 bytes, written one byte per write(), so one line
-   costs 31 system calls (5 lines = 155 per process, 310 for both). The kernel makes each
-   single write() whole (the console lock covers one call), but nothing holds a line
-   together across 31 calls. The two processes run at the same time on different harts
+   costs 31 system calls (5 lines = 155 per process, 310 for both). A 1-byte write()
+   reaches the UART through uartwrite(), which holds tx_lock while it sends that byte
+   (consolewrite itself takes no lock), but no lock is held from one write() to the next,
+   so nothing holds a line together across 31 calls. The two processes run at the same time on different harts
    (CPUS=3), and the timer can also switch them between two calls, so A's and b's writes
    alternate: "AAAAAAAbAAAAbAAAbbAbbbb...". The mix is different on every run.
 

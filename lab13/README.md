@@ -7,7 +7,7 @@
 | `lab13.patch` | the Lab 13 change on top of Lab 10 (9 files, +212 lines) |
 | `lab10-13.patch` | the whole change against clean upstream xv6 (Lab 10 and Lab 13) |
 | `xv6-commits/` | the four Lab 13 commits as `git format-patch` files |
-| `kernel/`, `user/`, `Makefile` | the modified xv6 files |
+| `xv6-riscv/` | the complete modified xv6 tree (upstream `fa2ddcb` + Lab 10 + Lab 13): `cd xv6-riscv && make qemu` |
 | `experiments/` | `wakeall.c` and the two temporary kernel changes used for Observe 3 and 4 (not in the tree) |
 | `evidence/` | the QEMU console output behind every figure |
 | `brief.pdf`, `assets/` | the handout; figures, UTM class and logo |
@@ -15,7 +15,13 @@
 System calls: `sem_init` 24, `sem_down` 25, `sem_up` 26, the optional `sem_trydown` 27.
 `trace` (Lab 10) stays 23. The optional `sysinfo` of Lab 10 moved from 24 to 28.
 
-Apply to a clean upstream tree and run:
+Run the committed tree directly:
+
+```bash
+cd lab13/xv6-riscv && make qemu
+```
+
+Or apply the change to a clean upstream tree:
 
 ```bash
 git clone https://github.com/mit-pdos/xv6-riscv.git && cd xv6-riscv

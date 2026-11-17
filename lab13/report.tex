@@ -53,7 +53,7 @@ Before any kernel code exists, \texttt{semtest} prints exactly the lines of the 
 
 \section{kernel/sem.c}
 The new file holds a table of eight semaphores shared by all processes. Each is a value and a spinlock that protects it. \texttt{sem\_init} checks the id and the value and stores the value under the lock. \texttt{sem\_up} adds one and calls \texttt{wakeup(s)} under the lock. \texttt{sem\_down} is the heart:
-\lstinputlisting[language=C,firstline=37,lastline=60]{kernel/sem.c}
+\lstinputlisting[language=C,firstline=37,lastline=60]{xv6-riscv/kernel/sem.c}
 While the value is 0, the process registers the address \texttt{s} as the channel it waits for (\texttt{sleep\_prepare}), releases the spinlock, and sleeps. When it wakes up it takes the lock again and checks the value again. A process killed while it waits returns $-1$ instead of sleeping forever. \texttt{sem.o} is added to \texttt{OBJS} in the \texttt{Makefile}, and the three handlers to the \texttt{syscalls[]} table in \texttt{kernel/syscall.c}. They are also added to the name table of my Lab~10 \texttt{trace}, so that \texttt{trace} can print them by name.
 
 \section{Check 2: semtest}
@@ -86,7 +86,7 @@ Observe~3 and~4 ask what would go wrong if \texttt{sem\_down} were written diffe
 
 \section*{Observe answers}
 \textbf{1. Without the lock, why do the letters mix? How many system calls does one line cost?}
-A line is 30 letters and a newline, written one byte per \texttt{write()}: \textbf{31 system calls} per line, 155 per process. The kernel completes each \texttt{write} as a unit, but nothing keeps 31 separate calls together. The two processes run at the same time on different harts (3 CPUs), and the timer can also switch them between two calls, so their single-byte writes alternate in a different pattern on every run.
+A line is 30 letters and a newline, written one byte per \texttt{write()}: \textbf{31 system calls} per line, 155 per process. Each one-byte \texttt{write} reaches the UART through \texttt{uartwrite()}, which holds the spinlock \texttt{tx\_lock} while it sends that byte, so a single byte is never split; but no lock is held from one \texttt{write} to the next, so nothing keeps 31 separate calls together. The two processes run at the same time on different harts (3 CPUs), and the timer can also switch them between two calls, so their single-byte writes alternate in a different pattern on every run.
 
 \textbf{2. Which two lines of mix.c make one line a critical section?}
 \texttt{sem\_down(3);} before the loop that writes the line, and \texttt{sem\_up(3);} after it (each under \texttt{if (uselock)}). Semaphore 3 starts at 1 (\texttt{sem\_init(3, 1)}), so only one process at a time can be between them, and its 31 writes cannot be interleaved.
@@ -101,7 +101,7 @@ A line is 30 letters and a newline, written one byte per \texttt{write()}: \text
 \texttt{sem\_trydown(id)}, number 27, is \texttt{sem\_down} without the loop. Under the lock it takes a unit if the value is positive and returns 0, and otherwise it returns $-1$ at once without sleeping. The program \texttt{trydown} initialises semaphore 4 to 2 and calls it three times (Figure~2.3, first command). The results are 0, 0 and $-1$, after \texttt{sem\_up(4)} 0 again, and $-1$ for a bad id, from \texttt{sem\_trydown(9)} as from \texttt{sem\_down(-1)}.
 
 \chapter{The committed xv6 tree}
-The brief asks for the modified xv6 tree committed to git. Lab~13 adds four commits on top of the three Lab~10 commits, one per stage (Figure~5.1): the move of \texttt{sysinfo} to 28, the user side (Check~1), the kernel side (Check~2) and the optional \texttt{sem\_trydown}. The working tree is clean, and \texttt{kernel/syscall.h} ends with the numbers 22 to 28 in order. \texttt{git format-patch} exports the four commits to \texttt{xv6-commits/}. To rebuild the whole tree, apply \texttt{lab10-13.patch} to a clean upstream checkout.
+The brief asks for the modified xv6 tree committed to git. Lab~13 adds four commits on top of the three Lab~10 commits, one per stage (Figure~5.1): the move of \texttt{sysinfo} to 28, the user side (Check~1), the kernel side (Check~2) and the optional \texttt{sem\_trydown}. The working tree is clean, and \texttt{kernel/syscall.h} ends with the numbers 22 to 28 in order. \texttt{git format-patch} exports the four commits to \texttt{xv6-commits/}. The complete modified tree is committed in \texttt{xv6-riscv/} and runs with \texttt{make qemu} in that folder; the same tree is obtained by applying \texttt{lab10-13.patch} to a clean upstream checkout.
 \shot{git.png}{The committed tree: four Lab 13 commits on the Lab 10 ones, clean status}
 
 \utmconclusions
