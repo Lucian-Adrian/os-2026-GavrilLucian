@@ -189,11 +189,7 @@ $ pingpong
 The parent writes one byte to \texttt{parent\_to\_child[1]}, the child (PID 4) reads it, prints its PID, and writes the byte back on \texttt{child\_to\_parent[1]}. The parent (PID 3) reads the reply, prints its PID, and calls \texttt{wait()}. Closing the unused ends of both pipes ensures clean EOF handling and prevents leaked descriptors.
 
 \utmconclusions
-Building and extending xv6 made the structure of a small Unix kernel concrete:
-\begin{utmenumerate}
-\item User programs are isolated from hardware and reach kernel services only through system-call stubs (\texttt{usys.S}) and the trap dispatcher (\texttt{syscall.c});
-\item Blocking inside \texttt{sys\_sleep} lets the scheduler run other work while waiting for timer ticks instead of burning CPU in a user loop;
-\item Pipelines work by connecting separate processes through kernel pipe buffers and redirecting standard input and output;
-\item Adding a new command to xv6 only requires a user C file and an entry in \texttt{UPROGS} so \texttt{mkfs} includes it in \texttt{fs.img}.
-\end{utmenumerate}
+Building, booting, and extending xv6 under QEMU made the internal structure of a small Unix-like operating system much easier to follow. Reading \texttt{user/cat.c} alongside \texttt{usys.S}, \texttt{kernel/syscall.c}, and \texttt{kernel/sysfile.c} showed clearly how user-space code stays isolated from hardware and reaches kernel services only through system-call stubs and the trap dispatcher. Unlike user utilities that run in unprivileged RISC-V user mode, the handlers under \texttt{kernel/} execute in supervisor mode with direct access to memory, page tables, and devices, enforcing a clean boundary between application logic and privileged operations.
+
+Writing and testing \texttt{user/sleep.c} and \texttt{user/pingpong.c} reinforced that boundary in practice. Registering a new binary in \texttt{UPROGS} so \texttt{mkfs} packs it into \texttt{fs.img} was all that was needed to add a working command to the shell, and running \texttt{sleep 10} confirmed that blocking inside \texttt{sys\_sleep} yields the CPU for roughly one second (0.958 s) rather than wasting cycles in a busy loop. With \texttt{pingpong}, creating two separate pipes before \texttt{fork()} and closing the unused ends in both parent and child allowed a byte to travel cleanly in both directions without a race, showing how the kernel manages process creation, pipe buffers, and descriptor ownership together.
 \end{document}

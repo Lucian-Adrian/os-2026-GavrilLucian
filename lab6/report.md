@@ -391,7 +391,9 @@ UPROGS=\
 
 ## Conclusion
 
-Inspecting xv6's filesystem code explains its 16-byte directory entries, silent 14-character name truncation, 268 KiB maximum file size, and the two-counter reclamation rule (`nlink == 0` and `ref == 1` in `iput()`). Writing `mystat` and `find` showed that recursive tree walking needs only `open`, `read`, `stat`, and `close` in user space, provided `.` and `..` are skipped and descriptors are closed on return.
+Inspecting the xv6 filesystem source code made its on-disk layout and limits straightforward to trace. Each directory is stored as an array of 16-byte `(inum, name)` records with silent 14-character name truncation, 12 direct pointers plus one indirect block of 1 KiB cap any file at 268 KiB, and `iput()` only frees a file's blocks when both its on-disk link count (`nlink`) and in-memory reference count (`ref`) drop to zero.
+
+Implementing `mystat` and `find` on top of that filesystem showed how user-space utilities rely only on basic system calls (`open`, `read`, `stat`, and `close`) rather than extra kernel hooks. Testing `find` across nested directories and hard links confirmed that recursion works reliably once `.` and `..` are skipped and every opened descriptor is closed before returning, while comparing xv6 with Linux clarified what a production filesystem adds in permissions, timestamps, symbolic links, and error handling.
 
 ## Appendix: Standalone overlay run (23 October 2026)
 

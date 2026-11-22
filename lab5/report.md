@@ -440,7 +440,9 @@ $ rm disk.img
 
 ## Conclusion
 
-The experiments show how Linux separates directory names from inode metadata: unlinking a name leaves the data intact while another hard link or open file descriptor still references the inode, sparse files separate logical size from allocated disk blocks, and directory `r` and `x` bits control listing and traversal independently.
+Working through the Linux filesystem experiments showed that directory entries only map names to inode numbers, while the inode holds the file's real metadata and block pointers. That separation explained why hard links keep data intact after the original name is unlinked, why a deleted file still occupies space and stays readable while a process holds an open descriptor to it, and why a symbolic link is its own inode that can turn into a dangling path.
+
+The tests also showed how allocation, permissions, and device interfaces fit into the same design. Logical size and allocated disk blocks are independent, as seen when a small file consumes a 4 KiB block while a sparse file allocates no blocks for unwritten holes. Permission checks apply a single class (owner, group, or others) and distinguish directory listing (`r`) from traversal (`x`), while `setuid` and the sticky bit handle shared-system exceptions safely. Finally, inspecting `/dev`, `/proc`, and a loop-mounted ext4 image confirmed that Linux exposes storage devices, virtual filesystems, and kernel state through the same file hierarchy.
 
 ## Appendix: Standalone ext4 check (23 October 2026)
 

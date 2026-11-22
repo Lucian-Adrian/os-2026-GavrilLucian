@@ -205,11 +205,7 @@ brw-rw----+ 1 root cdrom 11, 0 Sep 28 14:04 /dev/sr0
 The symbolic link \texttt{/dev/cdrom} references block device \texttt{/dev/sr0} (major 11, minor 0). This confirms that the OS abstracts hardware interfaces into the standard file namespace.
 
 \utmconclusions
-Laboratory 1 demonstrated the four foundational roles of an operating system kernel through direct command-line inspection and system introspection. The experimental observations verified that:
-\begin{utmenumerate}
-\item The file system manager structures raw disk space into a hierarchical directory namespace and enforces permissions based on metadata stored in inodes;
-\item The process manager schedules execution threads, maintains the process hierarchy starting at PID 1, and exposes real-time state via \texttt{/proc};
-\item The memory manager tracks physical RAM and page allocation, distinguishing unallocated memory from reclaimable cache;
-\item The device manager abstracts heterogeneous physical and virtual hardware into standard device nodes under \texttt{/dev}.
-\end{utmenumerate}
+Through the command-line experiments carried out on Ubuntu 24.04.4 LTS, the four core responsibilities of the Linux kernel became concrete rather than abstract textbook definitions. Inspecting the root hierarchy, creating and modifying \texttt{note.txt}, and restricting its permissions with \texttt{chmod 600} showed how the virtual file system organizes storage into a single directory tree while enforcing access rules from inode metadata. At the same time, querying live processes with \texttt{ps} and reading \texttt{/proc/PID/status} made the process lifecycle visible from the outside, from the init tree rooted at PID 1 (\texttt{systemd}) down to individual processes waiting in the scheduler and later terminated by signals.
+
+Checking system memory and storage tied those same interfaces to the underlying hardware. Comparing \texttt{free -h} and \texttt{/proc/meminfo} clarified the difference between unallocated physical RAM and reclaimable page cache, while reading \texttt{VmRSS} showed that even an idle sleeping process still holds 1,968 kB of resident memory for its code, libraries, and stack. Finally, inspecting \texttt{lsblk}, \texttt{df -h}, and the device nodes under \texttt{/dev} confirmed that Linux exposes block devices like \texttt{/dev/sda1} and \texttt{/dev/sr0} through the same file namespace used for regular data, giving user programs a uniform way to interact with the system without touching hardware directly.
 \end{document}
