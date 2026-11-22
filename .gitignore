@@ -1,6 +1,7 @@
 # TeX and LaTeX intermediate compilation artifacts
 *.aux
 *.log
+!/lab3/access.log
 *.out
 *.toc
 *.xdv

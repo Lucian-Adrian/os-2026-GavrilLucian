@@ -28,6 +28,6 @@ For ls | grep c, user/sh.c starts the producer and consumer processes and connec
 - What is the difference between user/ and kernel/ code? User programs request protected services through system calls.
 - Why must a pipeline run its two commands in separate processes? Each side needs its own program and file descriptors while sharing data through a pipe.
 
-[pingpong.c](pingpong.c) is the optional two-pipe exercise. It is not registered in the pinned tree; use a working copy if you want to build it.
+[pingpong.c](pingpong.c) is the optional two-pipe exercise. The pinned tree builds the registered copy in [user/pingpong.c](user/pingpong.c).
 
 For the preceding Linux resource-management lab, see [Lab 1](../lab1/README.md) and its [teaching note](../lab1/teaching-note.md).

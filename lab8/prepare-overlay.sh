@@ -38,12 +38,12 @@ marker = "\t$U/_logstress\\\n"
 if content.count(marker) != 1:
     raise SystemExit("Expected one _logstress entry in the copied Makefile.")
 
-for program in ("sleep", "args"):
+for program in ("sleep", "args", "pingpong"):
     entry = f"\t$U/_{program}\\\n"
     if content.count(entry) != 1:
         raise SystemExit(f"Expected one existing _{program} entry.")
 
-addition = marker + "\t$U/_run\\\n\t$U/_pingpong\\\n\t$U/_primes\\\n"
+addition = marker + "\t$U/_run\\\n\t$U/_primes\\\n"
 content = content.replace(marker, addition, 1)
 
 for program in ("run", "pingpong", "primes"):

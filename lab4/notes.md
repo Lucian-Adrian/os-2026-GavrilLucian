@@ -14,11 +14,11 @@
 - The copied course tree's `user/user.h` declares `int sleep(int);`.
 - The handout says to inspect the header first. If it declares `pause(int)`, change the call in `sleep.c` to `pause(atoi(argv[1]))`; otherwise use the declared `sleep(int)` call. The handout associates the rename with August 2025.
 - The 9 October serial transcript records `sleep` without an argument printing the usage message and `sleep 20` returning to the prompt; measured wall time was 1.96 seconds. The report's matching figure is a genuine 10 October terminal capture.
-- The copied `Makefile` contains `$U/_sleep` and `$U/_args` entries. `args.c` matches the course tree's source copy; the lab4 `Makefile` matches the course tree's Makefile.
+- The copied `Makefile` contains `$U/_sleep` and `$U/_args` entries. `args.c` matches the course tree's source copy; the current overlay Makefile matches the pinned Lab 2 tree.
 
 ### Focused QEMU run
 - `sudo -n true` returned exit code 1 with `sudo: a password is required`; no system package installation was possible.
-- Debian packages were downloaded from the configured official `deb.debian.org` repository and extracted into `/tmp/codex-os-lab4-riscv-20261009/rootfs`. The isolated prefix used official Debian packages: `gcc-riscv64-unknown-elf` 14.2.0+19, `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `qemu-system-riscv` 10.0.13+ds-0+deb13u1, `opensbi` 1.6-1, `bc` 1.07.1-4, `gcc` 4:14.2.0-1, and `gcc-x86-64-linux-gnu` 4:14.2.0-1. The host already had the GCC 14 backend and QEMU shared-library dependencies; a temporary `gcc` alias used its installed `x86_64-linux-gnu-gcc-14` binary.
+- Debian packages were downloaded from the configured official `deb.debian.org` repository and extracted into a temporary directory. The isolated prefix used official Debian packages: `gcc-riscv64-unknown-elf` 14.2.0+19, `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `qemu-system-riscv` 10.0.13+ds-0+deb13u1, `opensbi` 1.6-1, `bc` 1.07.1-4, `gcc` 4:14.2.0-1, and `gcc-x86-64-linux-gnu` 4:14.2.0-1. The host already had the GCC 14 backend and QEMU shared-library dependencies; a temporary `gcc` alias used its installed `x86_64-linux-gnu-gcc-14` binary.
 - An 81-file, 283,120-byte temporary copy of `lab12/xv6-riscv` was built with the Lab 4 `sleep.c`, `args.c`, and `Makefile`. `make qemu` exited 0.
 - `sleep 20` returned to the shell prompt after 1.96 seconds measured wall time. Running `sleep` without a value printed `usage: sleep <ticks>`.
 - `args one two three` reported `argc = 4` and the expected four entries. `args *.c "x y"` reported `argc = 4`, with `*.c`, `"x`, and `y"` as literal arguments.

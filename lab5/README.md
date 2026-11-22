@@ -28,9 +28,9 @@ This laboratory examines the Linux filesystem from the shell up:
 
 - [report.md](report.md): Markdown report with historical command transcripts, reported measurements, data tables, and answers.
 - [report.tex](report.tex): Formal LaTeX laboratory report using `utmreport.cls`.
-- [report.pdf](report.pdf): Current PDF review/export generated from report.tex, with the conceptual filesystem diagram and a fresh-results appendix.
+- [report.pdf](report.pdf): Formal report built from the LaTeX source, with terminal captures.
 
-The report's images, class and logo are together in [assets](assets/). The lesson, reports and this overview stay directly in the lab folder.
+The terminal captures, filesystem diagram, report class, and logo are in [assets](assets/). The lesson, reports and this overview stay directly in the lab folder.
 
 ---
 

@@ -160,12 +160,12 @@ main(int argc, char *argv[])
     fprintf(2, "usage: sleep <ticks>\n");
     exit(1);
   }
-  pause(atoi(argv[1]));
+  sleep(atoi(argv[1]));
   exit(0);
 }
 \end{verbatim}
 
-In accordance with current course xv6 specifications, the program delegates to the kernel tick delay interface (\texttt{pause()}).
+The pinned xv6 revision provides the kernel tick delay through \texttt{sleep(int)}.
 
 \section{Build System Registration and Verification}
 The program was registered in the \texttt{Makefile} by appending \texttt{\$U/\_sleep\textbackslash} to \texttt{UPROGS}. Live execution under QEMU verified both normal and error paths:

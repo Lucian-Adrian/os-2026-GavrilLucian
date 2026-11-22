@@ -5,7 +5,7 @@ OBJS = \
   $K/entry.o \
   $K/start.o \
   $K/console.o \
-  $K/printk.o \
+  $K/printf.o \
   $K/uart.o \
   $K/kalloc.o \
   $K/spinlock.o \
@@ -40,8 +40,6 @@ TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' 
 	then echo 'riscv64-unknown-elf-'; \
 	elif riscv64-elf-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
 	then echo 'riscv64-elf-'; \
-	elif riscv64-none-elf-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
-	then echo 'riscv64-none-elf-'; \
 	elif riscv64-linux-gnu-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
 	then echo 'riscv64-linux-gnu-'; \
 	elif riscv64-unknown-linux-gnu-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
@@ -56,22 +54,16 @@ QEMU = qemu-system-riscv64
 MIN_QEMU_VERSION = 7.2
 
 CC = $(TOOLPREFIX)gcc
+AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-# Deterministic builds.
-DETFLAGS = -ffile-prefix-map=$(CURDIR)=.
-
-CFLAGS = -Wall -Werror -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
-CFLAGS += $(DETFLAGS)
-CFLAGS += -march=rv64gc
-CFLAGS += -std=gnu99
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding
 CFLAGS += -fno-common -nostdlib
-CFLAGS += -fno-delete-null-pointer-checks
 CFLAGS += -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset
 CFLAGS += -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero
 CFLAGS += -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc
@@ -97,7 +89,7 @@ $K/kernel: $(OBJS) $K/kernel.ld
 	$(OBJDUMP) -t $K/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel.sym
 
 $K/%.o: $K/%.S
-	$(CC) -march=rv64gc -g $(DETFLAGS) -c -o $@ $<
+	$(CC) -g -c -o $@ $<
 
 tags: $(OBJS)
 	etags kernel/*.S kernel/*.c
@@ -122,7 +114,7 @@ $U/_forktest: $U/forktest.o $(ULIB)
 	$(OBJDUMP) -S $U/_forktest > $U/forktest.asm
 
 mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
-	gcc -Wno-unknown-attributes -I. -o mkfs/mkfs mkfs/mkfs.c
+	gcc -I. -o mkfs/mkfs mkfs/mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
@@ -142,6 +134,9 @@ UPROGS=\
 	$U/_mkdir\
 	$U/_rm\
 	$U/_sh\
+	$U/_sleep\
+	$U/_args\
+	$U/_pingpong\
 	$U/_stressfs\
 	$U/_usertests\
 	$U/_grind\
@@ -150,9 +145,6 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-	$U/_sync\
-	$U/_sleep\
-	$U/_args\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -160,7 +152,7 @@ fs.img: mkfs/mkfs README $(UPROGS)
 -include kernel/*.d user/*.d
 
 clean: 
-	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
+	rm -f *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*.d */*.asm */*.sym \
 	$K/kernel fs.img \
 	mkfs/mkfs .gdbinit \
@@ -201,7 +193,3 @@ check-qemu-version:
 		echo "ERROR: Need qemu version >= $(MIN_QEMU_VERSION)"; \
 		exit 1; \
 	fi
-
-.PHONY: fmt
-fmt:
-	clang-format -i $(wildcard kernel/*.[ch] user/*.[ch] mkfs/*.c)

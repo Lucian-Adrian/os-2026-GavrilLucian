@@ -56,7 +56,7 @@ $ ls a
 ..             1 1 1024
 ```
 
-![Figure 1: xv6 Directory Listing and Types](assets/fig1_xv6_ls.jpg)
+![Figure 1: xv6 directory listings](assets/fig1_2_ls.png)
 
 ### Observation Analysis
 
@@ -140,7 +140,7 @@ $ cat r2 | wc
 
 The conceptual diagram omits the open-file-table layer.
 
-![Figure 2: mystat and Hard Links](assets/fig2_mystat_links.jpg)
+![Figure 2: mystat and hard links](assets/fig2_2_mystat_links.png)
 
 ### Inode Lifecycle and Deallocation
 
@@ -194,7 +194,7 @@ $ ls
 averyveryveryl 1 26 32
 ```
 
-![Figure 3: Constants and Truncation](assets/fig3_limits_truncation.jpg)
+![Figure 3: File-system constants](assets/fig3_1_constants.png)
 
 ### Maximum File Size Derivation
 
@@ -350,7 +350,7 @@ $ mystat cat
 cat: file, inode 3, links 2, size 35160 bytes
 ```
 
-![Figure 4: find and -n inode comparison](assets/fig4_find_and_stretch.jpg)
+![Figure 4: find results and inode numbers with -n](assets/fig4_2_find.png)
 
 ### Stretch Finding: Inode Identity
 

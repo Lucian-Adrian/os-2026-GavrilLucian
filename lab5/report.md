@@ -54,7 +54,7 @@ $ du -sh /var/log 2>/dev/null ; du -sh /usr 2>/dev/null
 7.4G	/usr
 ```
 
-![Figure 1: Tree and File Types](assets/fig1_tree_and_types.jpg)
+![Figure 1: File types shown by ls and file](assets/fig1_1_types.png)
 
 ### Observe 1: Analysis & Answers
 
@@ -145,7 +145,7 @@ $ rm big.img
 
 The conceptual diagram omits the open-file-table layer.
 
-![Figure 2: Inodes and Links](assets/fig2_inodes_and_links.jpg)
+![Figure 2: A hard link survives removal of the original name](assets/fig2_2_hardlink.png)
 
 ### Observe 2: Analysis & Answers
 
@@ -223,7 +223,7 @@ $ ls -l /etc/shadow
 -rw-r----- 1 root shadow 1205 Oct 12 15:38 /etc/shadow
 ```
 
-![Figure 3: Permissions](assets/fig3_permissions.jpg)
+![Figure 3: File permission modes](assets/fig3_1_modes.png)
 
 ### Observe 3: Analysis & Answers
 
@@ -311,7 +311,7 @@ l-wx------ 1 ubuntu ubuntu 64 Oct 12 15:39 2 -> pipe:[37191]
 lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 ```
 
-![Figure 4: Disks and Proc](assets/fig4_disks_and_proc.jpg)
+![Figure 4: Disks, partitions, and the root mount](assets/fig4_1_disks.png)
 
 ### Observe 4: Analysis & Answers
 
@@ -350,7 +350,7 @@ lr-x------ 1 ubuntu ubuntu 64 Oct 12 15:39 3 -> /proc/40/fd
 
 ## Stretch Exercises (All Four Completed)
 
-![Figure 5: Stretch Experiments](assets/fig5_stretch.jpg)
+![Figure 5: Testing file type detection with a gzip header](assets/fig5_1_magic.png)
 
 ### (a) Magic Numbers & Binary Header Detection
 

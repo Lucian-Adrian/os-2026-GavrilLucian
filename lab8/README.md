@@ -14,7 +14,7 @@ Seven original live execution screenshots are in `assets/proof-*.png` and embedd
 - `user/pingpong.c` uses one pipe for each direction.
 - `user/primes.c` is the optional process-and-pipe filter chain for 2 through 35.
 - `Makefile` records these three UPROGS entries while retaining the Lab 2 `sleep` and `args` entries.
-- `prepare-overlay.sh` makes a disposable xv6 copy from `lab2/` and registers the Lab 8 programs there.
+- `prepare-overlay.sh` makes a disposable xv6 copy from `lab2/` and builds the Lab 8 version of pingpong using the existing entry. It adds entries for run and primes.
 - `notes.md` contains answers to the required Observe questions and the recorded QEMU observations.
 - `teaching-note.md` traces the calls through the actual user and kernel sources.
 - [teaching-note.pdf](teaching-note.pdf) provides the visual study route and priority defense questions.

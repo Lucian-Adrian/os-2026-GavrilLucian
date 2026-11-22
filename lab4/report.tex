@@ -28,18 +28,18 @@
 \clearpage
 
 \utmintroduction
-\textbf{Purpose of the work.} To use the xv6 shell (\texttt{user/sh.c}, 499 lines) side by side with Bash and find out by experiment what a shell must do and what Bash adds on top. To show with a small program, \texttt{args}, who expands \texttt{*} and who removes quotes. To bring the \texttt{sleep} program from Lab 2 up to date with the current xv6, where the system call \texttt{sleep()} has been renamed \texttt{pause()}.
+\textbf{Purpose of the work.} To use the xv6 shell (\texttt{user/sh.c}, 499 lines) side by side with Bash and find out by experiment what a shell must do and what Bash adds on top. To show with a small program, \texttt{args}, who expands \texttt{*} and who removes quotes. To identify the timer syscall that the \texttt{sleep} utility calls in each xv6 revision.
 
-\textbf{Environment.} Debian GNU/Linux 13, GNU Bash 5.2.37, GCC 14, \texttt{riscv64-linux-gnu} toolchain, QEMU 10 (\texttt{qemu-system-riscv64}). xv6 is the current upstream \texttt{mit-pdos/xv6-riscv} in \texttt{\~{}/xv6-riscv} (commit \texttt{e93dabe}), to which \texttt{user/sleep.c} and \texttt{user/args.c} were added. Each QEMU session started from a freshly built \texttt{fs.img}. Every terminal figure is the real output of the commands shown in it.
+\textbf{Environment.} Debian GNU/Linux 13, GNU Bash 5.2.37, GCC 14, \texttt{riscv64-linux-gnu} toolchain, QEMU 10 (\texttt{qemu-system-riscv64}). The captures use upstream xv6 commit \texttt{e93dabe}, with \texttt{user/sleep.c} and \texttt{user/args.c} added. The runnable Lab 4 overlay in this repository builds on the pinned Lab 2 revision, \texttt{9374395cd3dc}. Each QEMU session started from a freshly built \texttt{fs.img}. Every terminal figure is the real output of the commands shown in it.
 
-\chapter{Fix sleep for the current xv6}
+\chapter{The sleep utility and its system call}
 
 \section{Which name does the tree use?}
-\texttt{grep -n "pause\textbackslash|sleep" user/user.h} prints a single line, \texttt{25:int pause(int);}, so this tree uses the new name and has no \texttt{sleep()} declaration at all (Figure~1.1). The matching stub is \texttt{entry("pause")} in \texttt{user/usys.pl}. A \texttt{sleep.c} that still calls \texttt{sleep()} therefore fails at link time with \texttt{undefined reference}: declaring a prototype in \texttt{user.h} is not enough, because a system call also needs the assembly stub that \texttt{usys.pl} generates and the kernel table entry in \texttt{syscall.c}.
+Figure~1.1 shows the upstream revision declaring \texttt{pause(int)} in \texttt{user/user.h}. Its \texttt{user/usys.pl} generates a \texttt{pause} stub. The pinned Lab 2 revision instead declares \texttt{sleep(int)} and generates a \texttt{sleep} stub. The Lab 4 overlay calls \texttt{sleep(int)} to match that revision. In either tree the stub passes the syscall number to the kernel, where \texttt{syscall.c} dispatches the call.
 \shot{fig1_1_grep_user_h.png}{The grep result in user.h}
 
 \section{The updated sleep.c}
-The program checks that exactly one argument is given; otherwise it prints the usage line on stderr (fd 2) and exits with status 1. It then converts the argument with \texttt{atoi()} and calls \texttt{pause()}. \texttt{\$U/\_sleep\textbackslash} and \texttt{\$U/\_args\textbackslash} are in \texttt{UPROGS}; \texttt{cat -A} shows that each line starts with a real TAB (\texttt{\^{}I}) and ends with the backslash, with nothing after it (Figure~1.2).
+The program checks that exactly one argument is given; otherwise it prints the usage line on stderr (fd 2) and exits with status 1. It then converts the argument with \texttt{atoi()} and calls the timer syscall. Figure~1.2 shows the \texttt{pause()} variant used for the captures. \texttt{\$U/\_sleep\textbackslash} and \texttt{\$U/\_args\textbackslash} are in \texttt{UPROGS}; \texttt{cat -A} shows that each line starts with a real TAB (\texttt{\^{}I}) and ends with the backslash, with nothing after it (Figure~1.2).
 \shot{fig1_2_sleep_c.png}{The updated sleep.c and its UPROGS line}
 
 \section{Running sleep in xv6}

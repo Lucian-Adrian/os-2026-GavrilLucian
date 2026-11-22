@@ -20,7 +20,7 @@ The recovered task explores xv6 inode metadata, directory entries, hard links, f
 - [user/find.c](user/find.c) recursively searches directory entries by basename and can print inode numbers.
 - [Makefile](Makefile) records the UPROGS registrations.
 - [notes.md](notes.md) preserves the 12 October answers and links to the fresh run record.
-- [report.md](report.md) retains historical transcripts and analysis plus fresh results; [report.tex](report.tex) is the LaTeX source; [report.pdf](report.pdf) is the current review/export with a conceptual diagram and a fresh-results appendix.
+- [report.md](report.md) retains historical transcripts and analysis plus fresh results; [report.tex](report.tex) is the LaTeX source; [report.pdf](report.pdf) is the formal report with terminal captures.
 - [assets/](assets/) holds the report class, logo, terminal captures, and the conceptual filesystem diagram.
 - [teaching-note.md](teaching-note.md) traces the programs through xv6 and separates historical output from fresh execution.
 
@@ -66,4 +66,4 @@ From this folder in WSL, with Tectonic installed:
     out=$(mktemp -d /tmp/os-lab6-report.XXXXXX)
     tectonic report.tex --outdir "$out"
 
-The output directory keeps generated build files out of the lab folder. The current report.pdf is built from report.tex and includes the fresh execution appendix.
+The output directory keeps generated build files out of the lab folder.
