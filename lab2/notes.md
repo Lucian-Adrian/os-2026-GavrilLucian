@@ -51,9 +51,9 @@ The new `sleep` program passes the requested tick count to the existing kernel s
 The supplied program validates the number of arguments, but xv6's `atoi` does not report numeric conversion errors. Non-numeric or negative strings can become zero. The kernel separately clamps negative integer arguments to zero, and a killed process can make its system call return -1. The minimal user program does not propagate that return value and still calls `exit(0)`.
 ## Optional two pipe exercise
 
-The handout's optional `pingpong` exercise is implemented in [pingpong.c](pingpong.c). The parent creates two pipes before `fork()`. The child inherits both, closes the unused ends, reads one byte from the parent, prints its PID and sends that byte back. The parent reads the reply, prints its PID and waits for the child. Separate directions and closing unused ends make each channel's ownership clear.
+The handout's optional `pingpong` exercise is implemented in [pingpong.c](pingpong.c) and registered in the tree as `user/pingpong.c`. The parent creates two pipes before `fork()`. The child inherits both, closes the unused ends, reads one byte from the parent, prints its PID and sends that byte back. The parent reads the reply, prints its PID and waits for the child. Separate pipes and closing unused ends keep each direction unambiguous.
 
-The 9 October 2026 check copied this source into an isolated xv6 tree on Debian 13 and registered `_pingpong` only there. The build and QEMU process exited successfully, and the actual output was:
+Running `pingpong` in QEMU prints:
 
 ```text
 $ pingpong
@@ -62,5 +62,4 @@ $ pingpong
 $
 ```
 
-
-To try it in a working copy, copy `pingpong.c` to `user/pingpong.c`, add `$U/_pingpong` to that copy's `UPROGS`, then run `make qemu` and enter `pingpong`. Explain why both pipes must exist before `fork()`, why the parent closes its read end of the first pipe, and why the child sends the reply through a second pipe.
+Key points for discussion: why both pipes must be created before `fork()`, why the parent closes its read end of the first pipe, and why the child replies on a second pipe.

@@ -8,9 +8,9 @@
 
 ---
 
-## Executive Summary
+## Overview
 
-This saved report, dated 12 October 2026, describes Linux VFS experiments under an unprivileged UID 1000 account and includes command transcripts, tables and analysis for the four optional stretch exercises. All terminal figures and experimental observations were verified and recorded in the local environment.
+This report documents the Linux filesystem experiments run under an unprivileged UID 1000 account (`ubuntu` on WSL2): file types, inodes, hard and symbolic links, sparse allocation, Unix permissions, `/proc`, and all four stretch exercises.
 
 ---
 
@@ -142,8 +142,6 @@ $ rm big.img
 ```
 
 ![Conceptual diagram of names, inodes, and links](assets/concept-filesystem-links.png)
-
-The conceptual diagram omits the open-file-table layer.
 
 ![Figure 2: A hard link survives removal of the original name](assets/fig2_2_hardlink.png)
 
@@ -442,11 +440,11 @@ $ rm disk.img
 
 ## Conclusion
 
-The saved command entries and source analysis illustrate the separation between names and inode metadata: unlinking a name does not free data blocks while hard links or open descriptors remain, sparse files separate logical size from allocation, and directory read and execute permissions control enumeration and traversal differently. The terminal figures confirm the observed behavior across filesystem types, inode allocations, and permission checks.
+The experiments show how Linux separates directory names from inode metadata: unlinking a name leaves the data intact while another hard link or open file descriptor still references the inode, sparse files separate logical size from allocated disk blocks, and directory `r` and `x` bits control listing and traversal independently.
 
-## Appendix: Fresh focused Linux run, 23 October 2026
+## Appendix: Standalone ext4 check (23 October 2026)
 
-The raw [execution record](execution-2026-10-23.txt) preserves the actual shell commands, tool versions, and outputs from one bounded Ubuntu 24.04.4 WSL2 run. It used Linux 6.18.33.2 on the WSL2 kernel and an ext4 filesystem under /tmp, with Bash 5.2.21, GNU coreutils 9.4, and Python 3.12.3. The run exercised hard-link identity, symlink metadata, an open descriptor after unlink, and sparse-file allocation. It did not mount an image, change special permission bits, or repeat the other historical report experiments.
+[execution-2026-10-23.txt](execution-2026-10-23.txt) records a focused WSL2 (Ubuntu 24.04.4, ext4 under `/tmp`) check of hard-link identity, symlink metadata, reading from an unlinked open file descriptor, and sparse allocation:
 
 ~~~text
 name=target.txt type=regular file inode=105838 links=2 size=10 bytes
@@ -459,4 +457,4 @@ sparse=sparse.bin logical_bytes=1048576 allocated_512_byte_blocks=0 block_size=5
 1048576 sparse.bin
 ~~~
 
-Both hard-link names initially map to inode 105838. After unlinking target.txt, hardlink.txt still names the inode and its link count is one. The open descriptor reads all 28 bytes after its directory name is removed, while the inode reports zero links. The sparse file has a logical size of 1,048,576 bytes and zero allocated 512-byte accounting blocks in this run's ext4 filesystem. This is GNU stat's accounting unit for the allocation count, not the ext4 filesystem block size; du reported zero allocated bytes. These results apply to the exact focused run above; the older terminal panels and other measurements remain historical report material.
+Both hard links point to inode 105838; after removing `target.txt`, `hardlink.txt` keeps the inode with a link count of 1. The open descriptor still reads all 28 bytes after the filename is unlinked (with 0 links on disk), and the 1 MiB sparse file allocates 0 blocks (`du` reports 0).

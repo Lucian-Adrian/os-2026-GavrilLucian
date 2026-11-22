@@ -8,13 +8,11 @@
 
 ---
 
-## Executive Summary
+## Overview
 
-This saved report describes the MIT xv6 filesystem and records outputs for two user utilities in a QEMU run. All terminal figures and logs verify working system behavior.
-1. `user/mystat.c`: Decodes filesystem inodes, object types, link counts, and byte sizes.
-2. `user/find.c`: Performs recursive filesystem traversal using bounded file descriptors, complete with the optional `-n` stretch flag to emit inode identifiers alongside discovered paths.
-
-The saved report includes code analysis, reported measurements and historical console transcripts. The terminal figures and source analysis document the verified system behavior.
+This report examines the MIT xv6 filesystem and implements two user utilities:
+1. `user/mystat.c`: prints file type, inode number, link count, and byte size.
+2. `user/find.c`: searches a directory tree recursively, closing each directory descriptor before returning, with an optional `-n` flag to print inode numbers alongside matching paths.
 
 ---
 
@@ -137,8 +135,6 @@ $ cat r2 | wc
 ```
 
 ![Conceptual diagram of names, inodes, and links](assets/concept-filesystem-links.png)
-
-The conceptual diagram omits the open-file-table layer.
 
 ![Figure 2: mystat and hard links](assets/fig2_2_mystat_links.png)
 
@@ -324,7 +320,7 @@ main(int argc, char *argv[])
 }
 ```
 
-### Historical Verification on a Fresh Disk Image, 12 October 2026
+### Verification on a Fresh Disk Image
 
 ```text
 $ mkdir a
@@ -395,11 +391,11 @@ UPROGS=\
 
 ## Conclusion
 
-Source analysis explains xv6's 16-byte directory records, 14-character name limit, and the separate roles of link counts and cached references during reclamation. The saved find transcript illustrates recursive lookup with descriptor closure in one filesystem image; it does not establish behavior for every tree depth. The terminal figures confirm recursive directory traversal and inode identity across links.
+Inspecting xv6's filesystem code explains its 16-byte directory entries, silent 14-character name truncation, 268 KiB maximum file size, and the two-counter reclamation rule (`nlink == 0` and `ref == 1` in `iput()`). Writing `mystat` and `find` showed that recursive tree walking needs only `open`, `read`, `stat`, and `close` in user space, provided `.` and `..` are skipped and descriptors are closed on return.
 
-## Appendix: Fresh xv6 execution, 23 October 2026
+## Appendix: Standalone overlay run (23 October 2026)
 
-The raw [execution record](execution-2026-10-23.txt) preserves the build output, tool versions, commands echoed by xv6, and captured results. The run used Ubuntu 24.04 WSL2 with host GCC 13.3.0, GNU make 4.3, Perl 5.38.2, RISC-V GCC 13.2.0, and QEMU 8.2.2. The Lab 6 helper created a disposable overlay from Lab 2 in /tmp. The linker warned that the kernel and user/_forktest have RWX load segments; the build completed and QEMU/make exited with status 0.
+[execution-2026-10-23.txt](execution-2026-10-23.txt) records a separate WSL2 build and QEMU run using `prepare-overlay.sh` on top of the Lab 2 tree:
 
 ~~~text
 $ mystat README . console
@@ -425,4 +421,4 @@ a/b/r2 28
 a/r2 29
 ~~~
 
-In this disposable filesystem image, the hard link preserves inode 2 after README is unlinked, while the link count falls from two to one. The recursive search finds both nested r2 paths; -n reports their distinct inodes, 28 and 29. These inode numbers belong to this fresh image and do not revise the older 12 October transcript. The bounded run did not repeat the report's cat hard link or filesystem-limit observations.
+In this image, unlinking `README` drops inode 2's link count from 2 to 1 while `r2` keeps the file intact, and `find a r2 -n` finds both nested `r2` files with distinct inodes (28 and 29).

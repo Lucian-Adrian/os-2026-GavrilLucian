@@ -2,14 +2,11 @@
 
 Coursework for Operating Systems (FCIM / FAF, UTM, 2026-2027).
 
-Start with [teaching-note.md](teaching-note.md): names, inodes, open descriptors, allocation and permissions, with source-linked experiments and oral questions. The original local Lab 5 brief is not recovered; use the current official [Lab 5 handout](https://else.fcim.utm.md/mod/resource/view.php?id=72232) for the assignment requirements.
-
-The owner confirmed on 15 October that all six OS labs were completed and received 10/10. The environment and numbers below describe the saved report's historical run, not a new check. 
+Start with [teaching-note.md](teaching-note.md) for a walkthrough of names, inodes, open descriptors, allocation, and permissions, with oral defense questions. The assignment handout is on Moodle ([Lab 5 handout](https://else.fcim.utm.md/mod/resource/view.php?id=72232)).
 
 **Track:** A (Warm-up on Linux)
-**Environment:** Ubuntu 24.04 LTS VM on WSL2, Linux kernel 6.6.87.2-microsoft-standard-WSL2, x86_64
-**Historical report user:** `ubuntu` (non-root, UID 1000)
-**Current PDF review/export:** [report.pdf](report.pdf) | [LaTeX source](report.tex) | [Markdown report](report.md) | [fresh execution record](execution-2026-10-23.txt)
+**Environment:** Ubuntu 24.04 LTS (WSL2) / Debian GNU/Linux 13
+**Reports:** [report.pdf](report.pdf) | [LaTeX source](report.tex) | [Markdown report](report.md) | [execution log](execution-2026-10-23.txt)
 
 ---
 
@@ -26,11 +23,11 @@ This laboratory examines the Linux filesystem from the shell up:
 
 ## Deliverables in This Folder
 
-- [report.md](report.md): Markdown report with historical command transcripts, reported measurements, data tables, and answers.
-- [report.tex](report.tex): Formal LaTeX laboratory report using `utmreport.cls`.
-- [report.pdf](report.pdf): Formal report built from the LaTeX source, with terminal captures.
+- [report.md](report.md): Markdown report with command transcripts, measurements, tables, and answers.
+- [report.tex](report.tex): LaTeX laboratory report using `utmreport.cls`.
+- [report.pdf](report.pdf): PDF report built from `report.tex`, with terminal screenshots.
 
-The terminal captures, filesystem diagram, report class, and logo are in [assets](assets/). The lesson, reports and this overview stay directly in the lab folder.
+The terminal screenshots, filesystem diagram, report class, and logo are in [assets](assets/).
 
 ---
 
@@ -38,10 +35,10 @@ The terminal captures, filesystem diagram, report class, and logo are in [assets
 
 To build `report.pdf` using Tectonic:
 
-```powershell
+```bash
 tectonic report.tex
 ```
 
-## Fresh focused run
+## Additional execution log
 
-The 23 October transcript is a genuine WSL execution record for hard-link identity, symbolic-link metadata, an open descriptor after unlink, and sparse allocation. It records Ubuntu 24.04.4 on WSL2 and an ext4 temporary directory. The rest of the report remains historical material.
+[execution-2026-10-23.txt](execution-2026-10-23.txt) records a standalone WSL2 (Ubuntu 24.04.4, ext4) run checking hard links, symlinks, reading from an unlinked open file descriptor, and sparse file allocation.

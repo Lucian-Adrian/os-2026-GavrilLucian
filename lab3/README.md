@@ -1,14 +1,12 @@
 # Operating Systems Laboratory 3
 
-The handout is [L3_SO.pdf](L3_SO.pdf). Required Word-deliverable filename: [Lab3_Lucian-Adrian_Gavril_FAF-241.docx](Lab3_Lucian-Adrian_Gavril_FAF-241.docx). Current PDF review/export: [report.pdf](report.pdf), generated from the [LaTeX source](report.tex). The required repository scripts are [report.sh](report.sh) and [oneliners.sh](oneliners.sh).
+The handout is [L3_SO.pdf](L3_SO.pdf). Deliverables: [Lab3_Lucian-Adrian_Gavril_FAF-241.docx](Lab3_Lucian-Adrian_Gavril_FAF-241.docx), [report.pdf](report.pdf) (built from [report.tex](report.tex)), [report.sh](report.sh), and [oneliners.sh](oneliners.sh).
 
 For a first-principles walkthrough of Bash parsing, descriptors, pipes, and the report script, see [teaching-note.md](teaching-note.md).
 
-## Status
+## Environment
 
-The data and script checks passed on Debian GNU/Linux 13 on 9 October 2026. The measured Q6 output is 10:10 user0, 10:15 user5, and 10:20 user3.
-
-The report includes genuine terminal captures for all 24 required figures and the exact temporary cron entry with its four-run output. The captures were recorded on Dev1 with Debian GNU/Linux 13 on 10 October 2026.
+Tested on Debian GNU/Linux 13 with GNU Bash 5.2.37. The report includes terminal screenshots for all 24 figures, plus the temporary cron entry and its four-run output. For Q6, the last three failed requests in `access.log` are `10:10 user0`, `10:15 user5`, and `10:20 user3`.
 
 ## Build report PDF
 

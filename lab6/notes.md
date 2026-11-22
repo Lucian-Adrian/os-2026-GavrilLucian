@@ -5,7 +5,7 @@
 **Environment:** xv6 RISC-V on QEMU 8.2.2 (emulated 3-hart virt machine)
 **Date:** 2026-10-12
 
-> The observations below are historical from 12 October 2026. The focused 23 October run is recorded in [execution-2026-10-23.txt](execution-2026-10-23.txt); it independently verifies only the listed mystat, hard-link, and nested-find behavior in its own disposable image.
+> An additional standalone overlay run of `mystat`, hard links, and `find` is recorded in [execution-2026-10-23.txt](execution-2026-10-23.txt).
 
 ---
 

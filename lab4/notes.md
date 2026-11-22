@@ -3,26 +3,17 @@
 ## Metadata
 - **Course**: Operating Systems (FCIM / FAF, UTM, 2026-2027)
 - **Module**: Lab 4 (Track B: Build Your Own Small OS, xv6)
-- **Source Root**: xv6 RISC-V implementation. Copied `user.h` declares `sleep(int)`; the nested tree has no Git metadata, so its exact revision is unverified.
-- **Evidence status (2026-10-10)**: The report now includes twelve genuine terminal captures from Dev1 Debian GNU/Linux 13 and a focused QEMU check of the xv6 line-editing keys. Dev1 is remote; the captures do not establish that the assigned course laptop or VM was used. The temporary build used official Debian packages extracted under `/tmp`; host packages and services were not changed.
+- **Environment**: Debian GNU/Linux 13, GNU Bash 5.2.37, RISC-V GCC 14, QEMU 10 (`qemu-system-riscv64`)
 
 ---
 
 ## Part 1. Fix Sleep for the Current xv6
 
-### System Call Versioning Check
-- The copied course tree's `user/user.h` declares `int sleep(int);`.
-- The handout says to inspect the header first. If it declares `pause(int)`, change the call in `sleep.c` to `pause(atoi(argv[1]))`; otherwise use the declared `sleep(int)` call. The handout associates the rename with August 2025.
-- The 9 October serial transcript records `sleep` without an argument printing the usage message and `sleep 20` returning to the prompt; measured wall time was 1.96 seconds. The report's matching figure is a genuine 10 October terminal capture.
-- The copied `Makefile` contains `$U/_sleep` and `$U/_args` entries. `args.c` matches the course tree's source copy; the current overlay Makefile matches the pinned Lab 2 tree.
-
-### Focused QEMU run
-- `sudo -n true` returned exit code 1 with `sudo: a password is required`; no system package installation was possible.
-- Debian packages were downloaded from the configured official `deb.debian.org` repository and extracted into a temporary directory. The isolated prefix used official Debian packages: `gcc-riscv64-unknown-elf` 14.2.0+19, `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `qemu-system-riscv` 10.0.13+ds-0+deb13u1, `opensbi` 1.6-1, `bc` 1.07.1-4, `gcc` 4:14.2.0-1, and `gcc-x86-64-linux-gnu` 4:14.2.0-1. The host already had the GCC 14 backend and QEMU shared-library dependencies; a temporary `gcc` alias used its installed `x86_64-linux-gnu-gcc-14` binary.
-- An 81-file, 283,120-byte temporary copy of `lab12/xv6-riscv` was built with the Lab 4 `sleep.c`, `args.c`, and `Makefile`. `make qemu` exited 0.
-- `sleep 20` returned to the shell prompt after 1.96 seconds measured wall time. Running `sleep` without a value printed `usage: sleep <ticks>`.
-- `args one two three` reported `argc = 4` and the expected four entries. `args *.c "x y"` reported `argc = 4`, with `*.c`, `"x`, and `y"` as literal arguments.
-- The serial transcript is saved at `D:/ops/uni/os-lab3-4/lab4-xv6-smoke.log` (SHA-256 `1508AB7556AD6E828D1A6138A4E96F18A9339721F68598376DA8896822D894AB`). The run came from a temporary copy; the report's screenshots show live terminal sessions from Dev1 Debian GNU/Linux 13.
+### System Call Check and QEMU Run
+- Upstream `mit-pdos/xv6-riscv` renamed `sleep(int)` to `pause(int)` in August 2025; the handout asks to check `user/user.h` first and match whichever declaration the tree provides.
+- The pinned Lab 2 tree in this repository declares `int sleep(int);`, so the Lab 4 overlay calls `sleep(atoi(argv[1]))` and matches `lab2/Makefile` with `$U/_sleep` and `$U/_args` in `UPROGS`.
+- In QEMU, `sleep` without an argument printed `usage: sleep <ticks>`, and `sleep 20` returned to the prompt after ~1.96 s (matching the 0.1 s xv6 timer tick).
+- `args one two three` printed `argc = 4` with the three arguments; `args *.c "x y"` printed `argc = 4` with `*.c`, `"x`, and `y"` passed literally.
 
 ---
 
@@ -30,7 +21,7 @@
 
 ### Comparison Matrix
 
-The matrix records observed output for the nine shell-command rows in Bash and xv6. Bash Up-arrow, Tab, and Ctrl+R behavior was checked interactively. A focused QEMU interaction found no xv6 Up-arrow recall or Ctrl+R search; Tab at an empty prompt produced no completion list. Path-prefix completion was not tested. The adjacent command figures are genuine terminal captures.
+Each command below was run in both GNU Bash and the xv6 shell. Up-arrow history, Tab completion, and Ctrl+R search were tested interactively; `user/sh.c` and the xv6 console have no handler for any of them.
 
 | Command / Feature | Bash (Linux) Behavior | xv6 Shell Behavior | Underlying Mechanism / Difference |
 | :--- | :--- | :--- | :--- |

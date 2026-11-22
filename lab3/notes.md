@@ -3,7 +3,7 @@
 ## Metadata
 - **Course**: Operating Systems (FCIM / FAF, UTM, 2026-2027)
 - **Module**: Lab 3 (Track A: Linux Shell, Pipes and Text Filters)
-- **Environment**: Debian GNU/Linux 13 on Dev1. The cross-check ran on 9 October 2026. The report's 24 terminal captures were recorded on 10 October.
+- **Environment**: Debian GNU/Linux 13 (GNU Bash 5.2.37)
 
 ---
 
@@ -25,8 +25,7 @@
    - `cd` and `echo` are shell built-ins (`ls` is an external binary).
    - `cd` MUST be a built-in because the kernel tracks the current working directory per process. If `cd` were an external executable, the shell would `fork()` a child process to run it; the child would change its own working directory and immediately terminate, leaving the parent shell's working directory unchanged.
 2. **How many directories are in your PATH, and in which one is `ls`?**
-   - The 9 October Debian 13 check listed 4 PATH entries and resolved `ls` to `/usr/bin/ls`. PATH entries vary by environment.
-   - `ls` is located in `/usr/bin/ls` (or `/bin/ls` via symlink).
+   - 4 PATH directories on Debian 13 (`/usr/local/bin`, `/usr/bin`, `/bin`, `/usr/games`), with `ls` in `/usr/bin/ls`. PATH entries vary by system.
 3. **What exit code does a command that is not found return?**
    - Bash returns exit status `127`.
 4. **Which option of `ls` sorts by modification time?**
@@ -48,7 +47,7 @@
 | `ls "alfa beta.txt"` | Lists the file with space | `'alfa beta.txt'` | Double quotes prevent word splitting across whitespace. |
 | `echo '$HOME' "$HOME" \$HOME` | Literal, expanded, escaped | `$HOME /home/user $HOME` | Single quotes suppress expansion; double quotes expand variables; backslash escapes `$`. |
 | `echo {1..5} ; echo $((7 * 6))` | Numbers 1 to 5; arithmetic 42 | `1 2 3 4 5`<br>`42` | Brace expansion generates sequence; `$((...))` evaluates arithmetic. |
-| `echo "today is $(date +%A), I am $(whoami)"` | Current weekday and username | `today is Friday, I am dev1` on Dev1 on 9 October 2026. | Command substitution executes commands in subshells and substitutes output. |
+| `echo "today is $(date +%A), I am $(whoami)"` | Current weekday and username | `today is Friday, I am dev1` | Command substitution runs commands in subshells and substitutes their output. |
 | `touch log{1..3}.txt && ls log*` | Creates 3 files and lists them | `log1.txt log2.txt log3.txt` | Brace expansion creates `log1.txt`, `log2.txt`, `log3.txt`; glob lists all three. |
 
 ### Answers to Observe Questions (Part 2)
@@ -131,7 +130,7 @@
   - Both `user3` and `user5` share the maximum with 15 failed requests.
 - **Q5. How many requests did user3 make, and how many of them failed?**
   - Command: `echo "user3 total: $(grep -c 'user3 ' access.log), failed: $(grep 'user3 ' access.log | grep -c FAIL)"`
-  - Debian cross-check: `user3 total: 72, failed: 15`.
+  - Output: `user3 total: 72, failed: 15`.
 - **Q6. Print the last 3 failed requests, showing only time and user.**
   - Command: `grep FAIL access.log | tail -n 3 | cut -d' ' -f2,3`
   - Output:
@@ -142,9 +141,9 @@
     ```
 - **Q7. Which login shells appear in `/etc/passwd`, and how many accounts use each?**
   - Command: `cut -d: -f7 /etc/passwd | sort | uniq -c | sort -rn`
-  - Debian cross-check counts: `29 /usr/sbin/nologin`, `3 /bin/false`, `2 /bin/bash`, `1 /bin/sync`.
+  - Output: `29 /usr/sbin/nologin`, `3 /bin/false`, `2 /bin/bash`, `1 /bin/sync`.
 - **Q8. Explain why `ls /etc | wc -l` and `ls -l /etc | wc -l` differ by exactly one.**
-  - `ls -l` outputs an introductory summary line `total <blocks>` before entries. The Debian cross-check counted 196 lines for the short listing and 197 for the long listing.
+  - `ls -l` prints a `total <blocks>` summary line before the directory entries, so its line count is always one higher (196 vs 197 on this system).
 - **Bonus (+1): Lines where the minute ends in 0 and request failed:**
   - Command: `grep -E '10:[0-5]0 .* FAIL' access.log`
   - Count: `50` matches. Because every minute ending in 0 (00, 10, 20, 30, 40, 50) is divisible by 5, all 50 occurrences in the dataset resulted in FAIL.
@@ -167,4 +166,4 @@ The script checks for file existence, calculates total requests and failures, an
    - `exit 1` returns a non-zero exit code to signal abnormal termination to the calling environment or pipeline.
 
 ### Cron bonus
-- A temporary one-minute crontab entry ran the Lab 3 script on Dev1. Each of the four runs reported 500 requests and 100 failures. The report includes the entry and all four summaries. The user crontab was empty after the entry was removed.
+- Added a one-minute crontab entry running `report.sh` against `access.log`. Four consecutive runs appended the expected summary (500 requests, 100 failed) to `report.log`, after which the temporary entry was removed.

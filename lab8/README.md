@@ -8,7 +8,7 @@ The current assignment is the Moodle resource [The Same Calls Inside Your Own OS
 
 The printable [report.pdf](report.pdf) is built from [report.tex](report.tex) using the canonical UTM `assets/utmreport.cls` and logo. Build it from this folder with `tectonic -X compile report.tex`.
 
-Seven original live execution screenshots are in `assets/proof-*.png` and embedded in the report: build/boot, echo, the beginning and end of the ls variant, failed exec, pingpong and primes. The reported PIDs match this capture session.
+Seven terminal screenshots are in `assets/proof-*.png` and embedded in the report: build/boot, echo, the beginning and end of the ls variant, failed exec, pingpong, and primes. The reported PIDs match this capture session.
 
 - `user/run.c` is the fixed `echo hello from the child` example.
 - `user/pingpong.c` uses one pipe for each direction.

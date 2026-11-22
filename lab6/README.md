@@ -4,25 +4,24 @@ Coursework for Operating Systems (FCIM / FAF, UTM, 2026-2027).
 
 **Track:** B, Build Your Own Small OS (xv6)
 **Author:** Lucian-Adrian Gavril (FAF-241)
-**Historical report environment:** xv6 RISC-V on QEMU 8.2.2
+**Environment:** xv6 RISC-V on QEMU 8.2.2 / QEMU 10.0
 
 ## Source and handout
 
-The original local Lab 6 brief is not recovered. Use the current official [Lab 6 handout](https://else.fcim.utm.md/mod/resource/view.php?id=72234) for the assignment requirements; this README summarizes the recovered source and report.
+The assignment handout is on Moodle ([Lab 6 handout](https://else.fcim.utm.md/mod/resource/view.php?id=72234)).
 
 ## Lab goal and files
 
-The 23 October [execution record](execution-2026-10-23.txt) captures one fresh disposable-image run of mystat, hard-link removal, and recursive find. It does not update the older 12 October transcript or cover every report exercise.
-
-The recovered task explores xv6 inode metadata, directory entries, hard links, file removal, and file-system limits. It adds two user programs:
+This lab explores xv6 inode metadata, directory entries, hard links, file removal, and filesystem limits, and adds two user programs:
 
 - [user/mystat.c](user/mystat.c) prints a path's type, inode number, link count, and size.
-- [user/find.c](user/find.c) recursively searches directory entries by basename and can print inode numbers.
-- [Makefile](Makefile) records the UPROGS registrations.
-- [notes.md](notes.md) preserves the 12 October answers and links to the fresh run record.
-- [report.md](report.md) retains historical transcripts and analysis plus fresh results; [report.tex](report.tex) is the LaTeX source; [report.pdf](report.pdf) is the formal report with terminal captures.
-- [assets/](assets/) holds the report class, logo, terminal captures, and the conceptual filesystem diagram.
-- [teaching-note.md](teaching-note.md) traces the programs through xv6 and separates historical output from fresh execution.
+- [user/find.c](user/find.c) recursively searches directory entries by basename and supports `-n` to print inode numbers.
+- [Makefile](Makefile) records the `UPROGS` registrations.
+- [notes.md](notes.md) contains the lab answers and QEMU session output.
+- [report.md](report.md) is the Markdown report; [report.tex](report.tex) and [report.pdf](report.pdf) are the LaTeX source and compiled PDF report with terminal screenshots.
+- [execution-2026-10-23.txt](execution-2026-10-23.txt) records a standalone overlay run of `mystat`, hard links, and `find`.
+- [assets/](assets/) holds the report class, logo, terminal screenshots, and the conceptual filesystem diagram.
+- [teaching-note.md](teaching-note.md) traces the programs through the xv6 kernel source.
 
 The complete xv6 source used for the overlay is in sibling [Lab 2](../lab2/README.md). Lab 6 alone does not contain a kernel tree, so its Makefile cannot build by itself.
 

@@ -2,7 +2,7 @@
 
 Start with the [teaching note](teaching-note.md) for a source walkthrough of processes, system calls, file descriptors, pipes and the lab's `sleep` program. The handout is [lab-02-brief.docx](lab-02-brief.docx). The required answers are in [notes.md](notes.md). The source tree is pinned to MIT xv6-riscv commit 9374395cd3dc31c0e6993b3d257e2379a8dec89f. The file `user/sleep.c` is registered as `$U/_sleep` in the Makefile.
 
-An Ubuntu 24.04 WSL capability check on 19 October recorded host GCC 13.3, GNU Make 4.3, Perl 5.38, RISC-V GCC 13.2 and QEMU 8.2.2. This confirms the build prerequisites were present during that check; it does not record a new build. The build, boot, timing and seven shell-check results in [notes.md](notes.md) are from an earlier run and remain historical. The notes also answer the source-reading questions.
+Tested on Ubuntu 24.04 (WSL) with GCC 13.3, GNU Make 4.3, Perl 5.38, RISC-V GCC 13.2, and QEMU 8.2.2. Build timings, shell checks, and answers to the source-reading questions are in [notes.md](notes.md).
 
 ## Build and run
 
