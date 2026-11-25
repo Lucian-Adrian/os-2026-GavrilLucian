@@ -1,0 +1,20 @@
+# experiments/trace.diff: print what thread_switch is about to LOAD, first 8 switches
+$ uthread
+[switch 1] T0 -> T1: load ra=0x190 sp=0x6120 (T1 stack 0x4120..0x6120)
+thread_a started
+[switch 2] T1 -> T2: load ra=0x244 sp=0x81A0 (T2 stack 0x61A0..0x81A0)
+thread_b started
+[switch 3] T2 -> T3: load ra=0x2F8 sp=0xA220 (T3 stack 0x8220..0xA220)
+thread_c started
+thread_c 0
+[switch 4] T3 -> T1: load ra=0x10E sp=0x60B0 (T1 stack 0x4120..0x6120)
+thread_a 0
+[switch 5] T1 -> T2: load ra=0x10E sp=0x8130 (T2 stack 0x61A0..0x81A0)
+thread_b 0
+[switch 6] T2 -> T3: load ra=0x10E sp=0xA1B0 (T3 stack 0x8220..0xA220)
+thread_c 1
+[switch 7] T3 -> T1: load ra=0x10E sp=0x60B0 (T1 stack 0x4120..0x6120)
+thread_a 1
+[switch 8] T1 -> T2: load ra=0x10E sp=0x8130 (T2 stack 0x61A0..0x81A0)
+thread_b 1
+thread_c 2

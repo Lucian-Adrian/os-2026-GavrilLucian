@@ -24,7 +24,7 @@ cp Makefile "$workdir/Makefile"
 make -C "$workdir" qemu
 ```
 
-The pinned tree declares `sleep(int)` in `user/user.h`, matching this lab's `sleep.c`. At the xv6 prompt:
+This `Makefile` is the pinned Lab 2 Makefile plus `_sleep` and `_args`. It also lists `_pingpong`, which comes from the Lab 2 tree (`../lab2/user/pingpong.c`), so use it only inside that copy and not in another xv6 tree. The pinned tree declares `sleep(int)` in `user/user.h`, matching this lab's `sleep.c`. At the xv6 prompt:
 
     $ sleep 20
     $ args one two three

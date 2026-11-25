@@ -1,0 +1,6 @@
+$ grep -c "^thread_[abc] [0-9]" evidence/1_uthread_full.txt
+300
+# 100 lines per thread, in the fixed order c, a, b:
+thread_a: 100
+thread_b: 100
+thread_c: 100

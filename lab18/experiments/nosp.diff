@@ -1,0 +1,11 @@
+--- a/user/uthread.c	2026-11-25 12:09:38.379647520 +0200
++++ b/user/uthread.c	2026-11-25 12:10:13.256280492 +0200
+@@ -94,7 +94,7 @@
+    * ret jumps to ra, so the thread starts at the top of func,
+    * and it runs on its own stack, which grows down from the END of t->stack. */
+   t->ctx.ra = (uint64)func;
+-  t->ctx.sp = (uint64)(t->stack + STACK_SIZE);
++  /* t->ctx.sp = ...;   EXPERIMENT: sp left 0 */
+ }
+ 
+ void

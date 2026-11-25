@@ -1,0 +1,15 @@
+--- a/user/uthread.c	2026-11-25 12:09:38.379647520 +0200
++++ b/user/uthread.c	2026-11-25 12:10:13.252280420 +0200
+@@ -77,6 +77,12 @@
+     current_thread = next_thread;
+     /* saves old's ra/sp/s0..s11, loads next's, and "returns" into next.
+      * For old, this call returns only when another thread switches back to it. */
++    static int nsw;
++    if (nsw++ < 8)
++      printf("[switch %d] T%d -> T%d: load ra=0x%lx sp=0x%lx (T%d stack 0x%lx..0x%lx)\n",
++             nsw, (int)(old - all_thread), (int)(next_thread - all_thread),
++             next_thread->ctx.ra, next_thread->ctx.sp, (int)(next_thread - all_thread),
++             (uint64)next_thread->stack, (uint64)(next_thread->stack + STACK_SIZE));
+     thread_switch(&old->ctx, &next_thread->ctx);
+   }
+ }

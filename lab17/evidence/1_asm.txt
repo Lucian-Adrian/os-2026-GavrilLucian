@@ -1,0 +1,12 @@
+$ gcc -S -o fire.s fire.c && grep -n -A3 "counter(%rip), %rax" fire.s
+38-.L3:
+39:	movq	counter(%rip), %rax
+40-	addq	$1, %rax
+41-	movq	%rax, counter(%rip)
+42-	addl	$1, -4(%rbp)
+--
+95-	call	printf@PLT
+96:	movq	counter(%rip), %rax
+97-	movq	%rax, %rsi
+98-	leaq	.LC2(%rip), %rax
+99-	movq	%rax, %rdi

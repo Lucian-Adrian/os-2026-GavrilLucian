@@ -1,0 +1,8 @@
+# experiments/nosp.diff: thread_create sets ra but leaves sp = 0
+$ uthread
+usertrap(): unexpected scause 0xf pid=3
+            sepc=0x114 stval=0xfffffffffffffff8
+$ grep -A2 "<thread_a>:" user/uthread.asm   (nosp build)
+ 112:	7179                	addi	sp,sp,-48
+ 114:	f406                	sd	ra,40(sp)
+ 116:	f022                	sd	s0,32(sp)

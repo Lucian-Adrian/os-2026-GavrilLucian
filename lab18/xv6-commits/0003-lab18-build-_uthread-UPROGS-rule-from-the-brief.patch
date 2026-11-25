@@ -1,0 +1,32 @@
+From 317af75ace1151e1303aa72f55803bd296c98a34 Mon Sep 17 00:00:00 2001
+From: Gavril Lucian-Adrian <189462022+Lucian-Adrian@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 12:14:22 +0200
+Subject: [PATCH 3/3] lab18: build _uthread (UPROGS + rule from the brief)
+
+---
+ Makefile | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/Makefile b/Makefile
+index 8842c99..0eca749 100644
+--- a/Makefile
++++ b/Makefile
+@@ -157,6 +157,7 @@ UPROGS=\
+ 	$U/_forphan\
+ 	$U/_dorphan\
+ 	$U/_sync\
++	$U/_uthread\
+ 
+ fs.img: mkfs/mkfs README $(UPROGS)
+ 	mkfs/mkfs fs.img README $(UPROGS)
+@@ -209,3 +210,7 @@ check-qemu-version:
+ .PHONY: fmt
+ fmt:
+ 	clang-format -i $(wildcard kernel/*.[ch] user/*.[ch] mkfs/*.c)
++
++$U/_uthread: $U/uthread.o $U/uthread_switch.o $(ULIB) $U/user.ld
++	$(LD) $(LDFLAGS) -T $U/user.ld -o $U/_uthread $U/uthread.o $U/uthread_switch.o $(ULIB)
++	$(OBJDUMP) -S $U/_uthread > $U/uthread.asm
+-- 
+2.47.3
+

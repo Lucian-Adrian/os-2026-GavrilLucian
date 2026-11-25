@@ -1,0 +1,11 @@
+$ for i in $(seq 10); do ./fire | tail -1; done
+counter:  1006065   (lost updates: the race)
+counter:  1116275   (lost updates: the race)
+counter:  1019741   (lost updates: the race)
+counter:  1007905   (lost updates: the race)
+counter:  1303491   (lost updates: the race)
+counter:  1011362   (lost updates: the race)
+counter:  1074434   (lost updates: the race)
+counter:  1015964   (lost updates: the race)
+counter:  1038139   (lost updates: the race)
+counter:  1189431   (lost updates: the race)

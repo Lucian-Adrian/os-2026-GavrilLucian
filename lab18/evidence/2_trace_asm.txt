@@ -1,0 +1,8 @@
+$ grep "<thread_[abc]>:" user/uthread.asm   (trace build)
+0000000000000190 <thread_a>:
+0000000000000244 <thread_b>:
+00000000000002f8 <thread_c>:
+$ grep -A4 "jal.*<thread_switch>" user/uthread.asm
+ 10a:	31c000ef          	jal	426 <thread_switch>
+ 10e:	70a2                	ld	ra,40(sp)
+ 110:	7402                	ld	s0,32(sp)

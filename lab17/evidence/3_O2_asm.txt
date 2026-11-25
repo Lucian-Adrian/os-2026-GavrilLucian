@@ -1,0 +1,16 @@
+$ gcc -O2 -S -o - fire.c | sed -n "/^work:/,/ret/p"
+work:
+.LFB12:
+	.cfi_startproc
+	subq	$8, %rsp
+	.cfi_def_cfa_offset 16
+	movq	counter(%rip), %rdx
+	movq	%rdi, %rsi
+	xorl	%eax, %eax
+	leaq	.LC0(%rip), %rdi
+	call	printf@PLT
+	xorl	%eax, %eax
+	addq	$1000000, counter(%rip)
+	addq	$8, %rsp
+	.cfi_def_cfa_offset 8
+	ret

@@ -1,0 +1,11 @@
+$ ./fire4   (four threads)
+thread 1 sees counter = 0 at 0x5646c6cfe030
+thread 2 sees counter = 0 at 0x5646c6cfe030
+thread 3 sees counter = 2552 at 0x5646c6cfe030
+thread 4 sees counter = 5131 at 0x5646c6cfe030
+expected: 4000000
+counter:  1611778   (lost 2388222 = 59.7%)
+$ ./fire4
+counter:  1337308   (lost 2662692 = 66.6%)
+$ ./fire4
+counter:  1116031   (lost 2883969 = 72.1%)

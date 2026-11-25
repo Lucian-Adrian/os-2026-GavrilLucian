@@ -1,0 +1,8 @@
+$ taskset -c 0 ./fire   (both threads on ONE core)
+counter:  2000000   (lost updates: the race)
+counter:  2000000   (lost updates: the race)
+counter:  2000000   (lost updates: the race)
+$ taskset -c 0 ./fire4
+counter:  4000000   (lost 0 = 0.0%)
+counter:  4000000   (lost 0 = 0.0%)
+counter:  2000000   (lost 2000000 = 50.0%)

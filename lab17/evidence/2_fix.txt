@@ -1,0 +1,7 @@
+$ ./fix   (mutex around counter++, 4 threads)
+counter:  4000000
+counter:  4000000
+counter:  4000000
+$ time ./fire4; time ./fix
+real	0m0.007s
+real	0m0.222s

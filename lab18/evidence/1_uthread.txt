@@ -1,0 +1,30 @@
+$ uthread
+thread_a started
+thread_b started
+thread_c started
+thread_c 0
+thread_a 0
+thread_b 0
+thread_c 1
+thread_a 1
+thread_b 1
+thread_c 2
+thread_a 2
+thread_b 2
+thread_c 3
+thread_a 3
+thread_b 3
+thread_c 4
+thread_a 4
+thread_b 4
+thread_c 5
+thread_a 5
+thread_b 5
+...   (thread_c 6 .. thread_b 98: the same c, a, b turns)
+thread_c 99
+thread_a 99
+thread_b 99
+thread_c: exit after 100
+thread_a: exit after 100
+thread_b: exit after 100
+thread_schedule: no runnable threads

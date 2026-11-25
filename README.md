@@ -19,6 +19,8 @@ Course repository: [Lucian-Adrian/os-2026-GavrilLucian](https://github.com/Lucia
 | 11 | Race, mutex and semaphore (Linux) | [report.md](lab11/report.md) | [PDF](lab11/report.pdf) · [Source and commands](lab11/README.md) |
 | 12 | Producer–consumer, condition variable, readers–writers, deadlock | [report.md](lab12/report.md) | [PDF](lab12/report.pdf) · [Source and commands](lab12/README.md) |
 | 13 | Semaphores in the xv6 kernel (`sem_init`, `sem_down`, `sem_up`) | [notes.txt](lab13/notes.txt) | [PDF](lab13/report.pdf) · [Patch and build](lab13/README.md) |
+| 17 | Threads share memory, and race (Linux) | [report.md](lab17/report.md) | [PDF](lab17/report.pdf) · [Source and commands](lab17/README.md) |
+| 18 | User-level thread switch (xv6 `uthread`) | [notes.txt](lab18/notes.txt) | [PDF](lab18/report.pdf) · [Tree and build](lab18/README.md) |
 
 The [combined Labs 1–2 report](lab1-2/README.md) and [combined Labs 5–6 report](lab5-6/README.md) are supplementary. Individual folders retain the required submission files. Original handouts are included where recovered; the original Labs 5, 6 and 8 handouts are linked from their lab READMEs rather than presented as locally recovered files.
 

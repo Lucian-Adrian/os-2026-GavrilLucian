@@ -1,0 +1,118 @@
+\documentclass{assets/utmreport}
+
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
+\usepackage{newunicodechar}
+\newfontfamily\diafont{Liberation Serif}
+\newunicodechar{ș}{{\diafont ș}}\newunicodechar{ț}{{\diafont ț}}\newunicodechar{Ș}{{\diafont Ș}}\newunicodechar{Ț}{{\diafont Ț}}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{assets/utm-logo.jpeg}
+
+\institution{Technical University of Moldova}
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+\department{Department of Software Engineering}
+\studyprogramme{Software Engineering Study Programme}
+\documenttype{Report on laboratory work no. 18}
+\reporttitle{Operating Systems}
+\reportsubtitle{Build a User-Level Thread Switch}
+\student{Lucian-Adrian Gavril}{FAF-241}
+\supervisor{Reițman Patricia}{univ. assist.}
+\cityyear{Chișinău}{2026}
+
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,frame=single,framerule=0.4pt,xleftmargin=1em,xrightmargin=1em}
+
+\begin{document}
+\sloppy
+\makeutmreporttitlepage
+{\small\tableofcontents}
+
+\utmintroduction
+\textbf{Purpose of the work.} To build a tiny thread library entirely in user space: three threads of one xv6 process take turns by saving and restoring registers themselves, exactly as the kernel's \texttt{swtch} does for processes, but without any kernel change.
+
+\textbf{Environment.} xv6-riscv, my Lab 13 tree (upstream \texttt{fa2ddcb} + Lab 10 + Lab 13), RISC-V GCC 14.2 (\texttt{riscv64-linux-gnu}), QEMU 10.0, \texttt{make qemu CPUS=3}. The change touches three files: \texttt{user/uthread.c}, \texttt{user/uthread\_switch.S} and \texttt{Makefile}. It is in \texttt{xv6-commits/} as three commits, and in \texttt{lab18.patch}. Every terminal figure is real QEMU console output; the raw text is in \texttt{evidence/}. The three experiments of Chapter 3 are temporary changes kept as diffs in \texttt{experiments/}, outside the tree.
+
+\chapter{The switch}
+
+\section{The saved context}
+A thread must keep only the registers that a function call is required to preserve: the return address \texttt{ra}, the stack pointer \texttt{sp} and the callee-saved \texttt{s0}--\texttt{s11}. That is 14 fields of 8 bytes, at offsets 0 to 104:
+\begin{lstlisting}
+struct context {
+  uint64 ra;   /*  0: where thread_switch "returns" to */
+  uint64 sp;   /*  8: the thread's own stack */
+  uint64 s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11;  /* 16 .. 104 */
+};
+\end{lstlisting}
+
+\section{thread\_switch}
+\texttt{user/uthread\_switch.S} has the same shape as \texttt{kernel/swtch.S}. \texttt{a0} points to the old context and \texttt{a1} to the new one:
+\begin{lstlisting}
+thread_switch:
+  sd ra, 0(a0)      # save the running thread
+  sd sp, 8(a0)
+  sd s0, 16(a0)  ...  sd s11, 104(a0)
+  ld ra, 0(a1)      # load the next thread
+  ld sp, 8(a1)
+  ld s0, 16(a1)  ...  ld s11, 104(a1)
+  ret               # pc = ra: continue in the next thread
+\end{lstlisting}
+
+\section{Creating and scheduling}
+\texttt{thread\_create} prepares the context so that the first switch to the thread starts its function on its own stack. The stack grows down, so \texttt{sp} is the \emph{end} of the array:
+\begin{lstlisting}
+t->ctx.ra = (uint64)func;
+t->ctx.sp = (uint64)(t->stack + STACK_SIZE);
+\end{lstlisting}
+\texttt{thread\_schedule} marks the next thread as running, remembers the old one, makes the next one current, and switches:
+\begin{lstlisting}
+struct thread *old = current_thread;
+next_thread->state = RUNNING;
+current_thread = next_thread;
+thread_switch(&old->ctx, &next_thread->ctx);
+\end{lstlisting}
+\texttt{thread\_b} and \texttt{thread\_c} are copies of \texttt{thread\_a}, and \texttt{\_uthread} is added to \texttt{UPROGS} with the build rule from the brief.
+
+\chapter{Run it}
+
+\section{Three threads take turns}
+The output matches the brief line for line (Figure~2.1): the three ``started'' lines, then \texttt{c}, \texttt{a}, \texttt{b} in turn from 0 to 99, the three exit lines, and \texttt{thread\_schedule: no runnable threads}. Each thread printed exactly 100 numbered lines (Figure~2.2).
+\shot{1_uthread.png}{uthread in xv6: three threads take turns}
+\shot{1_count.png}{300 numbered lines, 100 per thread}
+
+\texttt{c} counts first because of the start-up handshake. \texttt{main} (thread 0) switches to \texttt{a}. \texttt{a} prints ``started'' but must wait for \texttt{b} and \texttt{c}, so it yields to \texttt{b}, and \texttt{b} yields to \texttt{c}. \texttt{c} finds both others started and is the first to enter its loop. From then on every yield passes the turn round robin: \texttt{c} $\to$ \texttt{a} $\to$ \texttt{b}.
+
+\section{What each switch loads}
+A temporary trace (\texttt{experiments/trace.diff}) prints the \texttt{ra} and \texttt{sp} each switch is about to load (Figure~2.3), and the disassembly tells what those addresses are (Figure~2.4).
+\shot{2_trace.png}{The first eight switches: the ra and sp being loaded}
+\shot{2_trace_asm.png}{0x190, 0x244, 0x2f8 are the thread functions; 0x10e follows the call}
+
+The first switch into each thread loads the \texttt{ra} that \texttt{thread\_create} wrote: 0x190, 0x244 and 0x2f8 are the first instructions of \texttt{thread\_a}, \texttt{thread\_b} and \texttt{thread\_c}. Every later switch loads 0x10e, the instruction just after \texttt{jal thread\_switch} inside \texttt{thread\_schedule}. The \texttt{sp} loaded for a thread always lies inside that thread's own stack: for \texttt{thread\_a} it is 0x6120 the first time (the top of 0x4120..0x6120) and 0x60b0 afterwards, 0x70 bytes lower, where its frames for \texttt{thread\_a}, \texttt{thread\_yield} and \texttt{thread\_schedule} sit.
+
+\section*{Observe}
+\textbf{What exactly does thread\_switch save and load?}
+The 14 callee-saved registers of the running thread, \texttt{ra}, \texttt{sp} and \texttt{s0}--\texttt{s11}, go into \texttt{old->ctx}. The same 14 registers of the next thread are loaded from \texttt{new->ctx}. The caller-saved registers (\texttt{a0}--\texttt{a7}, \texttt{t0}--\texttt{t6}) are not saved, because \texttt{thread\_switch} is called like an ordinary C function and the compiled caller already assumes a call destroys them. The \texttt{pc} is not saved either: at that moment it points inside \texttt{thread\_switch}, the same place for every thread. The stack contents stay where they are, since every thread has its own stack and only the pointer to it changes.
+
+\textbf{Why is ra the register that makes execution continue in the other thread?}
+Because \texttt{thread\_switch} ends with \texttt{ret}, and \texttt{ret} only means ``jump to the address in \texttt{ra}''. After the loads, \texttt{ra} belongs to the next thread, so the function was called by one thread and returns into another. For a new thread, \texttt{ra} is the start of its function, so \texttt{ret} enters a function that was never called. For a thread that yielded earlier, \texttt{ra} is the instruction after its own call to \texttt{thread\_switch}, so that old call finally returns and the thread goes on with its loop. \texttt{sp} is loaded together with \texttt{ra}, so the code at \texttt{ra} finds its own frames.
+
+\chapter{Break it on purpose}
+
+\section{No stack: sp left 0}
+With \texttt{ra} set but \texttt{sp} left 0 (\texttt{experiments/nosp.diff}), the process is killed at once (Figure~3.1). The switch did reach \texttt{thread\_a}, at \texttt{sepc} 0x114, but its first instructions are \texttt{addi sp,sp,-48} and \texttt{sd ra,40(sp)}. They store to $0-48+40=-8$, the address in \texttt{stval}, and \texttt{scause} 0xf is a store page fault.
+\shot{3_nosp.png}{sp = 0: thread\_a starts, then faults on its first store to the stack}
+
+\section{Nowhere to go: ra left 0}
+With \texttt{sp} set but \texttt{ra} left 0 (\texttt{experiments/nora.diff}), nothing is printed and the program never ends. Ctrl-P shows the process in state \texttt{run} (Figure~3.2). \texttt{ret} jumped to address 0, which holds \texttt{thread\_init}. \texttt{thread\_init} saves \texttt{ra} (still 0), restores it and returns to 0 again: a silent infinite loop. This is the ``first switch jumps nowhere'' trap of the brief.
+\shot{3_nora.png}{ra = 0: the switch returns to address 0 and loops there forever}
+
+\utmconclusions
+A thread switch needs very little. Save 14 registers, load 14 others, and return. All three threads ran in one xv6 process and took turns exactly as the brief shows, 100 lines each, and no kernel file was changed.
+
+The trick is in the last instruction. \texttt{ret} jumps to whatever \texttt{ra} holds, so loading another thread's \texttt{ra} and \texttt{sp} makes the call return into a different thread, on that thread's own stack. The trace showed both cases: a new thread starts at the address \texttt{thread\_create} stored, and a resumed thread continues right after its own earlier call to \texttt{thread\_switch}.
+
+Both values are essential. Without a stack, the new thread faulted on its first store. Without a return address, the switch jumped to address 0 and looped there silently. Unlike the kernel's \texttt{swtch}, this switch is cooperative and invisible to the kernel. A thread runs until it yields, and if one thread blocked in a system call, all three would block with it.
+
+\end{document}

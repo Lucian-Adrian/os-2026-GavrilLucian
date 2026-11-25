@@ -143,7 +143,7 @@ $ cat r2 | wc
 In `kernel/sysfile.c`, the `sys_unlink()` system call removes the directory record and decrements the inode link count:
 
 ```c
-// kernel/sysfile.c, line 230
+// kernel/sysfile.c, line 231
 ip->nlink--;
 iupdate(ip);
 ```
@@ -213,10 +213,10 @@ nmeta 47 (boot, super, log blocks 31, inode blocks 13, bitmap blocks 1) blocks 1
 - **Metadata Blocks (47 total):**
   - Block 0: Boot block.
   - Block 1: Superblock.
-  - Blocks 2–31: Write-ahead logging area (30 blocks).
-  - Blocks 32–44: Inode table ($13\text{ blocks} \times 16\text{ inodes/block} = 208\text{ total inodes}$).
-  - Block 45: Free block allocation bitmap (1 block).
-- **Data Blocks:** 1953 blocks available for user files and directory tables.
+  - Blocks 2–32: Write-ahead logging area (31 blocks: 1 header + 30 data).
+  - Blocks 33–45: Inode table ($13\text{ blocks} \times 16\text{ inodes/block} = 208\text{ total inodes}$).
+  - Block 46: Free block allocation bitmap (1 block).
+- **Data Blocks:** blocks 47–1999, 1953 blocks available for user files and directory tables.
 
 ---
 

@@ -1,0 +1,6 @@
+$ gcc -O2 ... -o fire-O2 fire.c && ./fire-O2 (x5)
+counter:  2000000   (lost updates: the race)
+counter:  2000000   (lost updates: the race)
+counter:  2000000   (lost updates: the race)
+counter:  2000000   (lost updates: the race)
+counter:  2000000   (lost updates: the race)

@@ -1,0 +1,12 @@
+$ for i in $(seq 200); do ./fire | grep "thread 2"; done | sort | uniq -c | sort -rn | head
+     21 thread 2 sees >0
+    179 thread 2 sees 0
+# examples of a non-zero value:
+thread 2 sees counter = 272
+thread 2 sees counter = 878
+thread 2 sees counter = 2486
+thread 2 sees counter = 86389
+thread 2 sees counter = 11641
+# and who printed first (thread 1 line before thread 2 line?) in 200 runs:
+    194 thread 1 sees counter = 0
+      6 thread 2 sees counter = 0

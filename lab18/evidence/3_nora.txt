@@ -1,0 +1,11 @@
+# experiments/nora.diff: thread_create sets sp but leaves ra = 0
+$ uthread
+(nothing is printed; after 60 s, Ctrl-P lists the processes:)
+1 sleep  init
+2 sleep  sh
+3 run    uthread
+$ sed -n "/<thread_init>:/,/ret/p" user/uthread.asm   (address 0 = thread_init)
+   0:	1141                	addi	sp,sp,-16
+   2:	e406                	sd	ra,8(sp)
+  22:	60a2                	ld	ra,8(sp)
+  28:	8082                	ret

@@ -152,7 +152,7 @@ $ cat r2 | wc
 2. **sys_unlink Line and Block Deallocation Timing:**
    - In `kernel/sysfile.c`, the line decrementing the link count is:
      ```c
-     // kernel/sysfile.c line 230:
+     // kernel/sysfile.c line 231:
      ip->nlink--;
      iupdate(ip);
      ```
@@ -218,9 +218,9 @@ averyveryveryl 1 26 32
    - Metadata blocks: **47** (`nmeta 47`):
      - Boot block: 1 block (block 0).
      - Superblock: 1 block (block 1).
-     - Log: 30 blocks (blocks 2..31).
-     - Inodes: 13 blocks (blocks 32..44, storing $13 \times 16 = 208$ inodes).
-     - Free bitmap: 1 block (block 45).
+     - Log: 31 blocks (blocks 2..32: 1 header + 30 data blocks).
+     - Inodes: 13 blocks (blocks 33..45, storing $13 \times 16 = 208$ inodes).
+     - Free bitmap: 1 block (block 46). Data starts at block 47.
    - Data blocks: **1953** blocks (blocks 47..1999).
 
 ---

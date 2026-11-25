@@ -9,7 +9,7 @@
 | `evidence/` | the raw terminal output behind every figure |
 | `brief.pdf`, `assets/` | the handout; figures, UTM class and logo |
 
-The handed-in sources stay as in the brief. The Observe experiments are built from them with `-D`:
+The handed-in sources behave exactly as in the brief when built by default (they only add `setvbuf` for unbuffered output and `#ifdef` hooks). The Observe experiments are built from them with `-D`:
 
 | Target | Built as | Question |
 |---|---|---|

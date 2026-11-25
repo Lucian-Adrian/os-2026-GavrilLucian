@@ -1,0 +1,108 @@
+\documentclass{assets/utmreport}
+
+\usepackage{booktabs,amssymb,float,graphicx,adjustbox,array}
+\usepackage{newunicodechar}
+\newfontfamily\diafont{Liberation Serif}
+\newunicodechar{ș}{{\diafont ș}}\newunicodechar{ț}{{\diafont ț}}\newunicodechar{Ș}{{\diafont Ș}}\newunicodechar{Ț}{{\diafont Ț}}
+
+\hypersetup{hidelinks,hypertexnames=false,pdfauthor={Lucian-Adrian Gavril}}
+
+\selectlanguage{english}
+
+\utmlogo{assets/utm-logo.jpeg}
+
+\institution{Technical University of Moldova}
+\faculty{Faculty of Computers, Informatics, and Microelectronics}
+\department{Department of Software Engineering}
+\studyprogramme{Software Engineering Study Programme}
+\documenttype{Report on laboratory work no. 17}
+\reporttitle{Operating Systems}
+\reportsubtitle{Threads Share Memory, and Race}
+\student{Lucian-Adrian Gavril}{FAF-241}
+\supervisor{Reițman Patricia}{univ. assist.}
+\cityyear{Chișinău}{2026}
+
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\adjustbox{scale=0.6,max width=\linewidth,max height=0.78\textheight}{\includegraphics{assets/#1}}\caption{#2}\end{figure}}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,frame=single,framerule=0.4pt,xleftmargin=1em,xrightmargin=1em}
+
+\begin{document}
+\sloppy
+\makeutmreporttitlepage
+{\small\tableofcontents}
+
+\utmintroduction
+\textbf{Purpose of the work.} To see the two faces of threads. The threads of one process share its memory, so one thread instantly sees what another writes. When two threads change the same variable without protection, some changes are lost. The work runs an unprotected counter with 2, 4 and 8 threads, explains each loss with the three machine instructions of \texttt{counter++}, and checks the proposed fix.
+
+\textbf{Environment.} Debian GNU/Linux 13, Linux 6.12, GCC 14.2, on an Intel Core i5-12400F with 12 logical CPUs. Every program is built with \texttt{gcc -Wall -Wextra -pthread} and without \texttt{-O2}, as the brief asks, and builds with no warning. \texttt{fire.c} is the program of the brief. \texttt{fire4.c} is the same program with \texttt{T} threads that also prints the address of \texttt{counter}, and \texttt{fix.c} adds a mutex. Every terminal figure is the real output of the commands shown in it, and the raw text is kept in \texttt{evidence/}.
+
+\chapter{Shared and racing}
+
+\section{The race}
+Three runs of \texttt{fire} give 1\,007\,358, 1\,470\,750 and 1\,003\,769 (Figure~1.1). The right answer, 2\,000\,000, never appears, and in two of the three runs almost half of the additions are lost.
+\shot{1_fire.png}{fire.c: three runs, three different wrong results}
+
+Ten more runs stay between 1.0 and 1.53 million (Figure~1.2).
+\shot{1_fire_10runs.png}{fire.c: ten more runs}
+
+\section{Does thread 2 see thread 1's work?}
+In the brief, thread 2 prints a non-zero counter. On this machine it usually prints 0, because \texttt{pthread\_create} returns within microseconds and thread 1 has barely entered its loop when thread 2 reads the counter. Out of 200 runs, thread 2 saw 0 in 179 runs and a non-zero value in 21, up to 86\,389 (Figure~1.3).
+\shot{1_thread2_200runs.png}{200 runs: what thread 2 sees when it starts}
+
+\section{What counter++ really is}
+The compiler output shows that one line of C is three machine instructions (Figure~1.4): a load of \texttt{counter} into the register \texttt{\%rax}, an add of 1 inside the register, and a store back to memory.
+\shot{1_asm.png}{gcc -S fire.c: counter++ is load, add, store}
+
+\section*{Observe 1}
+\textbf{Thread 2 prints a non-zero counter at the start. What does that prove about the memory of the two threads?}
+That the two threads use the same memory, not two copies of it. Thread 2 has not written anything yet, so the additions it sees can only be thread 1's: both threads read and write one variable at one address. Figure~2.1 shows it directly: all four threads of \texttt{fire4} print the same address of \texttt{counter}, \texttt{0x5646c6cfe030}, and threads 3 and 4 see 2552 and 5131. After \texttt{fork()}, a child process would get its own copy, and its writes would never show up in the parent.
+
+\section*{Observe 2}
+\textbf{Why is the final counter less than 2000000, and different each run?}
+Each \texttt{counter++} is load, add, store. Suppose \texttt{counter} is 500. Thread 1 loads 500, and before it stores, thread 2 on another core also loads 500. Both add 1 in their own register, and both store 501. Two additions ran and \texttt{counter} grew by one, because the second store overwrote the first. The number of such overlaps depends on timing: when each thread starts, which cores it runs on, interrupts, other programs, and how fast the cache line of \texttt{counter} moves between cores. None of this repeats exactly, so the result changes every run.
+
+\chapter{Make it worse, then think}
+
+\section{Four threads, one address}
+\shot{2_fire4.png}{fire4: four threads share one address and lose 60--72\%}
+
+\section{Two, four and eight threads}
+Ten runs for each thread count (Figure~2.2) show that the loss grows with the number of threads, while the final counter stays around 1.2--1.8 million.
+
+\begin{center}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+Threads & Expected & Counter (10 runs) & Lost \\
+\midrule
+2 & 2\,000\,000 & 1\,019\,581 -- 1\,528\,489 & 24--49\% \\
+4 & 4\,000\,000 & 1\,230\,108 -- 1\,629\,723 & 59--69\% \\
+8 & 8\,000\,000 & 1\,312\,805 -- 1\,837\,519 & 77--84\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\shot{2_scaling.png}{fire, fire4, fire8: ten runs each}
+
+\section{All threads on one core}
+With \texttt{taskset -c 0}, all threads run on one core, one at a time (Figure~2.3). \texttt{fire} gives exactly 2\,000\,000 three times: the three steps can only be split if the scheduler preempts a thread between its load and its store, and that is rare. Rare is not safe: the third run of \texttt{fire4} lost exactly 2\,000\,000. One thread was preempted right after its load. Two other threads ran their whole million each. Then the first thread stored its old value plus one and wiped out all of their work.
+\shot{2_one_core.png}{One core: almost always right, then 2 million lost at once}
+
+\section{The fix, tested}
+\texttt{fix.c} locks a mutex around \texttt{counter++}. Four threads give exactly 4\,000\,000 in every run, but the program is about 30 times slower: 0.222~s against 0.007~s (Figure~2.4).
+\shot{2_fix.png}{fix.c: always right, about 30 times slower}
+
+\section*{Observe 3}
+\textbf{In one sentence: what single idea would stop the lost updates?}
+Mutual exclusion: make the load--add--store of \texttt{counter++} a critical section that only one thread at a time may enter, for example with a mutex locked before it and unlocked after it.
+
+\section{A trap: -O2 hides the race}
+Compiled with \texttt{-O2}, \texttt{fire} prints 2\,000\,000 five times out of five (Figure~2.5), because the compiler replaced the whole loop with one instruction, \texttt{addq \$1000000, counter(\%rip)} (Figure~2.6). The race is still there: nothing locks that instruction, so the window has only become too small to hit. Getting the right answer does not prove the code is correct, and that is why the brief forbids \texttt{-O2}.
+\shot{3_O2.png}{fire built with -O2: always 2000000}
+\shot{3_O2_asm.png}{gcc -O2 -S: the loop became one add of a million}
+
+\utmconclusions
+The threads of one process share its memory, and this was visible directly. Every thread printed the same address for \texttt{counter}, and the later threads started from the additions of the earlier ones.
+
+The same sharing makes unprotected updates unsafe. \texttt{counter++} is a load, an add and a store. When two threads interleave those three steps, one store overwrites the other. Two threads lost between a quarter and a half of their additions, four threads lost about two thirds, and eight threads about four fifths. The result was different every time.
+
+Three experiments separated the cause from the symptoms. On one core the race almost disappeared, but a single preemption lost two million additions at once. With \texttt{-O2} the result was always right, yet the race remained. With a mutex the result was always right at about thirty times the cost. The fix is mutual exclusion, and its price has to be measured.
+
+\end{document}

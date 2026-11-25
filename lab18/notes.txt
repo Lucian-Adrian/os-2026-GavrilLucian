@@ -1,0 +1,69 @@
+Lab 18 - Build a User-Level Thread Switch (xv6)
+Lucian-Adrian Gavril, FAF-241.
+xv6 = my Lab 13 tree (upstream mit-pdos/xv6-riscv fa2ddcb + Lab 10 + Lab 13) + the three Lab 18
+commits in xv6-commits/. The complete tree is in xv6-riscv/ (cd xv6-riscv && make qemu).
+lab18.patch is the Lab 18 diff on top of Lab 13. No kernel file is changed.
+RISC-V GCC 14.2, QEMU 10.0, make qemu with CPUS=3.
+
+What I wrote (three places, as the brief asks)
+  user/uthread.c         struct context = 14 uint64: ra, sp, s0..s11 (offsets 0, 8, 16 .. 104).
+                         thread_create:   t->ctx.ra = (uint64)func;
+                                          t->ctx.sp = (uint64)(t->stack + STACK_SIZE);
+                         thread_schedule: next RUNNING, old = current, current = next,
+                                          thread_switch(&old->ctx, &next_thread->ctx);
+                         thread_b, thread_c copied from thread_a.
+  user/uthread_switch.S  14 x "sd reg, off(a0)", 14 x "ld reg, off(a1)", ret.
+  Makefile               $U/_uthread in UPROGS + the rule from the brief.
+
+Result (evidence/1_uthread_full.txt): exactly the brief's output.
+  thread_a started, thread_b started, thread_c started, then c 0, a 0, b 0, c 1, a 1, b 1 ...
+  c 99, a 99, b 99, "thread_c: exit after 100", a, b, "thread_schedule: no runnable threads".
+  300 numbered lines, 100 per thread (evidence/1_count.txt).
+  Why c prints first: main (thread 0) switches to a; a prints "started", but b and c have not
+  started, so a yields to b; b yields to c; c finds a and b started, so c is the first
+  to enter its loop. From then on each yield goes round robin c -> a -> b -> c.
+
+Observe - What exactly does thread_switch save and load? Why is ra the register that makes
+execution continue in the other thread?
+
+  It saves, into old->ctx, the 14 callee-saved registers of the running thread:
+  ra (return address), sp (stack pointer) and s0..s11. Then it loads the same 14 registers
+  of the next thread from new->ctx. Nothing else is saved:
+  - not the pc: the pc is the instruction inside thread_switch itself, the same for everyone;
+  - not a0-a7 / t0-t6: they are caller-saved. thread_switch is called like an ordinary C
+    function, so the compiled caller (thread_schedule) already assumes they are destroyed and
+    keeps nothing it needs in them;
+  - not the stack contents: each thread has its own stack, and only the pointer to it moves.
+
+  ra is what makes execution continue elsewhere because thread_switch ends with "ret",
+  and ret is just "jump to the address in ra". After the 14 loads, ra holds the NEXT
+  thread's saved address, not the one of the thread that called thread_switch. So the call
+  was made by one thread and the return lands in another. Two cases (evidence/2_trace.txt,
+  2_trace_asm.txt; addresses of the trace build, which prints and so is laid out differently):
+  - first switch into a thread: ra = the address thread_create stored, the first instruction of
+    the thread function (switch 1 loads ra=0x190 = thread_a, switch 2 0x244 = thread_b,
+    switch 3 0x2F8 = thread_c), so ret "returns" to the start of a function never called;
+  - every later switch: ra = 0x10E, the instruction right after "jal thread_switch" inside
+    thread_schedule. That thread's earlier call to thread_switch finally returns, its
+    thread_schedule and thread_yield return, and it continues its own loop.
+  sp is loaded together with ra, so the code at ra finds its own stack frames: switch 4
+  loads sp=0x60B0 for thread_a, inside a's stack 0x4120..0x6120, 0x70 bytes below the top
+  (the frames of thread_a, thread_yield and thread_schedule).
+
+Experiments (overachieve; kept out of the tree, as diffs in experiments/)
+  nosp.diff  ra set, sp left 0 (evidence/3_nosp.txt):
+             usertrap(): unexpected scause 0xf (store page fault), sepc=0x114,
+             stval=0xfffffffffffffff8. ret did reach thread_a, but its first
+             "addi sp,sp,-48 ; sd ra,40(sp)" writes to 0 - 48 + 40 = -8: no stack, instant crash.
+  nora.diff  sp set, ra left 0 (evidence/3_nora.txt):
+             nothing is printed and the program never ends; Ctrl-P shows "3 run uthread".
+             ret jumps to address 0, which is thread_init. thread_init saves ra (still 0),
+             restores it and returns to 0 again: a silent infinite loop. This is the brief's
+             "the first switch jumps nowhere".
+  trace.diff prints ra and sp that each of the first 8 switches is about to load
+             (evidence/2_trace.txt), used in the answer above.
+
+Difference from the kernel swtch: the same 14 registers, the same offsets, the same ret.
+But this switch is cooperative (a thread runs until it calls thread_yield), and it happens
+in user space without entering the kernel. To xv6 it is one process with one kernel thread;
+if any of a, b, c blocked in a system call, all three would block.
