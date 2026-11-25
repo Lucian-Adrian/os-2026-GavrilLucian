@@ -1,0 +1,163 @@
+\documentclass[9pt]{extarticle}
+\usepackage[a4paper,landscape,margin=7mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{multicol}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{ragged2e}
+\usepackage{xcolor}
+\setlength{\columnsep}{4mm}
+\setlength{\columnseprule}{0.2pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt}
+\setlist{nosep,leftmargin=8pt,label=\textbullet}
+\titleformat{\section}{\normalsize\bfseries\color{blue!60!black}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{3pt}{1pt}
+\newcommand{\cc}[1]{\texttt{#1}}
+\newcommand{\ra}{$\rightarrow$}
+\pagestyle{empty}
+\begin{document}
+\begin{multicols*}{3}\RaggedRight
+\centerline{\textbf{OS assessment 2 cheatsheet} \quad FAF-241, 30 Nov 2026 \quad xv6 = \cc{lab18/xv6-riscv}}
+
+\section{Our xv6 vs the book}
+\cc{fork/exit/wait/kill/exec} \ra{} kernel \cc{kfork/kexit/kwait/kkill/kexec}. \cc{sleep(chan,lk)} \ra{} \cc{sleep\_prepare(chan)}; \cc{release(lk)}; \cc{sleep()}; \cc{acquire(lk)}. Kernel \cc{printf} \ra{} \cc{printk}. Syscall 13 is \cc{pause}.
+
+\section{1. fork / exec / wait / exit}
+\begin{itemize}
+\item \cc{fork()} returns child PID in parent, \textbf{0} in child (\cc{kfork}: \cc{np->trapframe->a0 = 0}), $-1$ on error. Child gets a \emph{copy} of memory (\cc{uvmcopy}, no COW), copied fd table (\cc{filedup}: shared offsets), \cc{idup(cwd)}, \cc{trace\_mask}.
+\item \cc{exec} keeps PID, fds, trace mask; replaces code/data/stack; \textbf{never returns on success}. Line after it = error path: \cc{perror; exit(127)}.
+\item \cc{kexit}: close files, \cc{reparent} children to init, \cc{wakeup(parent)}, \cc{state=ZOMBIE}, \cc{sched()}. Zombie = exit status + PID kept until \cc{wait}.
+\item \cc{kwait}: ZOMBIE child \ra{} \cc{copyout xstate}, \cc{freeproc}, return pid; no children \ra{} $-1$; else sleep on \cc{p}.
+\item States: \cc{UNUSED USED SLEEPING RUNNABLE RUNNING ZOMBIE}. \cc{NPROC 64}.
+\item Linux status encoded: \cc{exit(3)} \ra{} raw 768; use \cc{WEXITSTATUS}. xv6: plain int. \cc{execlp} searches PATH; xv6 \cc{exec} does not.
+\item $n$ forks in a row \ra{} $2^n$ processes. \cc{if(fork()\&\&fork())} \ra{} 3 procs, 1 print.
+\item stdio buffer is copied by fork, discarded by exec. Terminal = line-buffered, pipe = fully buffered. \cc{printf("hello "); fork();} \ra{} printed twice everywhere. \cc{printf("A\textbackslash n"); fork(); printf("B\textbackslash n")} \ra{} tty \cc{A B B}, pipe \cc{A B A B}.
+\end{itemize}
+\textbf{Labs:} L7 \cc{nosuchprog} status 127 (child's own exit); zombie \cc{Z+ [ls] <defunct>} until \cc{waitpid}. L8 xv6 \cc{run}: parent pid 3, child 4, missing prog status 1. L10 \cc{forkforkfork}: \cc{fork -> 67} then $-1$ (table full).
+
+\section{2. Descriptors, redirection, pipes}
+\begin{itemize}
+\item New fd = \textbf{lowest free} (\cc{fdalloc}, loop from 0). \cc{NOFILE 16}/proc, \cc{NFILE 100} total.
+\item \cc{> f}: \cc{close(1); open(f,O\_WRONLY|O\_CREAT|O\_TRUNC)} \ra{} 1; exec.
+\item \cc{a|b} (\cc{sh.c case PIPE}): \cc{pipe(p)}; L: \cc{close(1);dup(p[1])}; R: \cc{close(0);dup(p[0])}; \textbf{all close both ends}; parent \cc{wait(0)} twice.
+\item Read blocks while empty \emph{and} a writer exists; \textbf{EOF (0) only when every write end closed}. Forgot one \ra{} reader hangs (L7 leaked writer: \cc{wc} PID 2007 hung).
+\item xv6 \cc{pipe.c}: \cc{PIPESIZE 512}, \cc{nread}, \cc{nwrite}, \cc{readopen}, \cc{writeopen}. Full: \cc{nwrite==nread+PIPESIZE} \ra{} \cc{wakeup(\&nread)}, sleep on \cc{\&nwrite}. No reader \ra{} $-1$ (Linux: SIGPIPE). Linux capacity 65536 (measured).
+\item \cc{write "hello"; close(w); read 3, 10, 10} \ra{} \cc{3 2 0}.
+\item \cc{close(0)} with 3,4 used, \cc{pipe(q)} \ra{} \cc{q = \{0,5\}}.
+\end{itemize}
+\textbf{Labs:} L7 \cc{open} gave 1; \cc{ls /etc|wc -l}=172; 3-stage = 108. L8 pingpong: 2 pipes (one per direction), \cc{10: received ping}, \cc{9: received pong}; primes: 11 primes $\le 35$, child must close inherited write end. L9 first \cc{openat}=3; with \cc{0<\&-} it is 0.
+
+\section{3. System calls}
+Stub (\cc{usys.pl}\ra\cc{usys.S}): \cc{li a7,SYS\_x; ecall; ret} \ra{} \cc{uservec} (trampoline.S, regs \ra{} trapframe) \ra{} \cc{usertrap} (\cc{scause==8}) \ra{} \cc{syscall()}: \cc{num=tf->a7; tf->a0 = syscalls[num]()} \ra{} args via \cc{argint/argaddr/argstr} (\cc{argraw} reads \cc{a0..a5}) \ra{} \cc{prepare\_return}, \cc{userret}. Bad num \ra{} \cc{"\%d \%s: unknown sys call \%d"}, $-1$.
+
+\textbf{Add a call:} \cc{syscall.h} number, \cc{user.h} prototype, \cc{usys.pl} \cc{entry()}, \cc{syscall.c} extern + table, handler in \cc{sysproc.c}, Makefile \cc{UPROGS}.
+
+\textbf{Numbers:} fork1 exit2 wait3 pipe4 \textbf{read5} kill6 exec7 fstat8 chdir9 dup10 getpid11 sbrk12 pause13 uptime14 \textbf{open15 write16} mknod17 unlink18 link19 mkdir20 \textbf{close21} sync22 \textbf{trace23} sem\_init24 down25 up26 trydown27 sysinfo28.
+
+\textbf{trace:} \cc{p->trace\_mask}; print if \cc{(mask>>num)\&1}; copied in \cc{kfork}, kept by exec. Mask = $\sum 2^{num}$: read = 32, write = 65536, open+close = $2^{15}+2^{21}$ = \textbf{2129920}.
+
+\textbf{Labs:} L9 strace \cc{ls -l} 87 calls (39 openat, 33 close, 14 read, 1 write); printf prog: 1 write into pipe, 3 on tty. L10 \cc{trace 32 grep hello README}: reads 1023, 965, 453, 0 (=2441 B). \cc{trace 65536 echo hi}: trace line between \cc{hi} and newline (2 writes). sysinfo: 32532 free; fork $-10$ pages; \cc{sbrk(40960)} $-10$ (eager); wait $+10$; bad ptr $-1$ (\cc{copyout}).
+
+\section{4. File system}
+\begin{tabular}{@{}l|l|l|l|l|l@{}}
+0&1&2--32&33--45&46&47--1999\\\hline
+boot&super&log 31&inodes 13&bitmap&data 1953
+\end{tabular}
+
+mkfs: \cc{nmeta 47 ... blocks 1953 total 2000}. \cc{BSIZE 1024}, \cc{FSSIZE 2000}, \cc{LOGBLOCKS 30}+header, 200 inodes, \cc{IPB 16} (dinode 64 B).
+\begin{itemize}
+\item \cc{dinode}: \cc{type major minor nlink size addrs[13]}. \cc{NDIRECT 12} + \cc{NINDIRECT 256} = \cc{MAXFILE 268} blocks = \textbf{274\,432 B}. \cc{bmap}: \cc{bn<12} \ra{} \cc{addrs[bn]}, else indirect block \cc{addrs[12]}[\cc{bn-12}]; \cc{balloc} on demand.
+\item \cc{dirent} = \cc{ushort inum; char name[DIRSIZ=14]} = 16 B; empty dir 32 B. \cc{ROOTINO 1}. Types: 1 dir, 2 file, 3 device.
+\item Layers: virtio \ra{} \cc{bio.c} (\cc{bread/bwrite/brelse}, \cc{NBUF 30}) \ra{} \cc{log.c} (\cc{begin\_op/log\_write/end\_op}, \cc{commit}, \cc{recover\_from\_log}) \ra{} inodes (\cc{ialloc iget ilock iput readi writei itrunc}) \ra{} dirs (\cc{dirlookup dirlink}) \ra{} paths (\cc{namei namex}) \ra{} fds (\cc{file.c sysfile.c}).
+\item \cc{unlink}: \cc{nlink--}; blocks freed in \cc{iput} when \cc{ref==1 \&\& nlink==0}. Log = crash atomicity (all or nothing).
+\item Sleeplocks on buffers/inodes: disk I/O is slow, spinlock can't be held across sleep.
+\end{itemize}
+\textbf{L6:} \cc{ln README r2} \ra{} inode 2, links 2; \cc{rm README} \ra{} r2 intact (\cc{48 334 2425}). Long name cut to 14 chars.
+
+\section{5. Races}
+\cc{counter++} = \cc{movq counter,\%rax; addq \$1,\%rax; movq \%rax,counter}. Two overlapping loads \ra{} one increment lost. Threads share globals; fork children don't.
+
+\textbf{Labs:} L11 race 1.01--1.21\,M of 2\,M. L17: 2 thr lose 24--49\,\%, 4 thr 59--69\,\%, 8 thr 77--84\,\%; same \cc{\&counter} in all threads; \cc{taskset -c 0} mostly correct but \cc{fire4} once 2\,M of 4\,M (preempted between load and store); \cc{-O2} correct only because loop became one \cc{addq \$1000000}. Correct output $\neq$ correct code.
+
+\section{6. Mutex, semaphore, atomic}
+\begin{itemize}
+\item Semaphore start: \textbf{1 = lock}, \textbf{0 = signal/order}, \textbf{N = N resources}. \cc{wait/down/P}: sleep while 0, then $-1$. \cc{post/up/V}: $+1$, wake.
+\item Atomic = one RMW instruction (x86 \cc{lock addq}, RISC-V \cc{amoadd/amoswap}).
+\end{itemize}
+\textbf{L11:} race 0.009\,s (wrong), atomic 0.076, mutex 0.232, sem 0.267. Mutex: 10\,759 \cc{futex} calls vs 2; sys 0 \ra{} 0.140\,s. \cc{sem\_init(..,2)} \ra{} wrong again. \cc{order.c} start 1 \ra{} B reads \cc{""}. Parking 3 places: max 3 inside, 2.003\,s; 1 place = mutex, 6.004\,s. L17 \cc{fix.c} 4\,M exactly, 0.222 vs 0.007\,s.
+
+\section{7. Producer--consumer, condvar, RW, deadlock}
+\begin{itemize}
+\item Bounded buffer: \cc{empty=SIZE}, \cc{full=0}, mutex. Producer \cc{wait(empty); lock; put; unlock; post(full)}. \textbf{Semaphore first, mutex second}; swapped \ra{} \cc{put 1..4} then deadlock, \cc{timeout} exit \textbf{124}.
+\item Condvar: state in a variable under the mutex; condvar remembers nothing. \cc{lock; while(!ready) pthread\_cond\_wait(\&c,\&m);} --- \textbf{while}: spurious wakeups, condition stolen before relock. \cc{cond\_wait} atomically unlocks+sleeps, relocks on return.
+\item Readers--writers: \cc{if(++readers==1) wait(room)}; \cc{if(--readers==0) post(room)} under \cc{rlock}. Readers-preferring \ra{} writer \textbf{starves}. Fix: turnstile.
+\item Coffman: mutual exclusion, hold \& wait, no preemption, \textbf{circular wait}. Lock ordering (A before B) breaks the cycle. L12 without \cc{sleep(1)}: hung 4/10 (53, 72, 68 /100); 0/100 on one CPU. Deadlock = nobody moves; starvation = one never moves.
+\end{itemize}
+
+\section{8. Kernel locks, sleep/wakeup, semaphores, UART}
+\begin{itemize}
+\item \cc{acquire}: \cc{push\_off()} (interrupts off, nested \cc{noff}), panic if \cc{holding}, spin \cc{\_\_atomic\_exchange\_n(\&locked,1,ACQUIRE)} = \cc{amoswap.w.aq}. \cc{release}: \cc{\_\_atomic\_store\_n(..,0,RELEASE)}, \cc{pop\_off}. Interrupts off: a handler wanting the same lock on this CPU would spin forever.
+\item \cc{sleep\_prepare(chan)}: \cc{p->chan=chan} under \cc{p->lock}. \cc{sleep()}: if \cc{chan != 0} \ra{} SLEEPING, \cc{sched()}; if a wakeup already cleared \cc{chan}, return at once (\textbf{no lost wakeup}). \cc{wakeup(chan)} wakes \textbf{all} on chan.
+\item Pattern: \cc{acquire(lk); while(!cond)\{sleep\_prepare(x); release(lk); sleep(); acquire(lk);\}}. Used in pipe, \cc{kwait}, \cc{pause}, \cc{uartwrite}, \cc{acquiresleep}, \cc{sem.c}.
+\item \cc{sem.c} (L13): \cc{NSEM 8}, \cc{struct sem\{spinlock; int value;\}}. down: \cc{while(value==0)\{...; if(killed) return -1;\} value--}. up: \cc{value++; wakeup(s)}. trydown: $-1$ instead of sleeping.
+\item UART: \cc{write(1)} \ra{} \cc{consolewrite} (32 B chunks) \ra{} \cc{uartwrite} holds \cc{tx\_lock}, byte to THR, \cc{tx\_busy=1}, sleep on \cc{tx\_chan} \ra{} interrupt \cc{uartintr}: \cc{tx\_busy=0; wakeup(\&tx\_chan)}. \cc{printk} uses \cc{uartputc\_sync} (spins). User \cc{printf} = \textbf{one write per char}.
+\end{itemize}
+\textbf{L13:} \cc{mix}: 31 B line = 31 syscalls; no lock \ra{} \cc{AAAAAAAbAAAAbAAAbb...}; \cc{sem\_down(3)/up(3)} (start 1) \ra{} whole lines, order varies. \cc{if} instead of \cc{while}: 3 sleepers, one up \ra{} all 3 pass, value $-2$. Sleep holding spinlock \ra{} \cc{panic: sched locks} (\cc{noff != 1}). \cc{sem\_init(4,2)}; trydown \ra{} 0, 0, $-1$.
+
+\section{9. Scheduling, kernel context switch}
+\begin{itemize}
+\item \cc{scheduler()} per CPU: \cc{intr\_on(); intr\_off();} scan \cc{proc[]}, \cc{acquire(p->lock)}; RUNNABLE \ra{} RUNNING, \cc{c->proc=p}, \cc{swtch(\&c->context,\&p->context)}; nothing \ra{} \cc{wfi}. Round robin.
+\item \cc{sched()} checks: holds \cc{p->lock}, \cc{noff==1}, not RUNNING, intr off; \cc{swtch(\&p->context,\&mycpu()->context)}. \cc{yield()}: RUNNABLE + \cc{sched}.
+\item Preemption: timer \cc{w\_stimecmp(r\_time()+1000000)} ($\approx$0.1\,s QEMU) \ra{} \cc{clockintr} \cc{ticks++} \ra{} \cc{devintr}=2 \ra{} \cc{usertrap/kerneltrap}: \cc{if(which\_dev==2) yield()}.
+\item \cc{swtch.S}: 14 \cc{sd} of \cc{ra sp s0..s11} into \cc{*a0}, 14 \cc{ld} from \cc{*a1}, \cc{ret}. Callee-saved only (caller assumes \cc{a*}, \cc{t*} clobbered). User regs live in trapframe.
+\item New proc starts in \cc{forkret} (\cc{allocproc}: \cc{context.ra=forkret}); releases \cc{p->lock}. \cc{p->lock} held across \cc{swtch}, released by the other side.
+\end{itemize}
+
+\section{10. Threads, user-level switch (L18)}
+\begin{itemize}
+\item Thread = stack + registers + PC, shared address space. Kernel threads (pthreads): preemptive, parallel, block independently. User-level (\cc{uthread}): one process, no syscall to switch, \textbf{cooperative}, no parallelism, one blocking syscall blocks all.
+\item \cc{thread\_create}: \cc{ctx.ra = func}; \cc{ctx.sp = stack + STACK\_SIZE} (top; stacks grow down). \cc{STACK\_SIZE 8192}, \cc{MAX\_THREAD 4}.
+\item \cc{thread\_schedule}: round robin from current+1, \cc{thread\_switch(\&old->ctx,\&next->ctx)} = same 14 \cc{sd}/\cc{ld} + \cc{ret} as \cc{swtch}.
+\item Output: a, b, c \cc{started}, then \textbf{c 0, a 0, b 0, c 1}\ldots{} 300 lines, \cc{thread\_c: exit after 100}, \ldots, \cc{no runnable threads}.
+\item First switch: \cc{ra} = function addr; later: \cc{ra=0x10E} (after \cc{jal thread\_switch}). \cc{sp=0} \ra{} \cc{scause 0xf}, \cc{stval=...fff8}. \cc{ra=0} \ra{} jumps to 0 (\cc{thread\_init}), silent loop. \cc{sp=stack} (bottom) \ra{} overwrites previous thread struct.
+\end{itemize}
+
+
+\section{Diagrams to draw}
+\textbf{Process states} (\cc{proc.h}):\\
+\cc{UNUSED \ra{} USED} (\cc{allocproc}) \cc{\ra{} RUNNABLE} (\cc{kfork}/\cc{userinit})\\
+\cc{RUNNABLE \ra{} RUNNING} (\cc{scheduler}); \cc{RUNNING \ra{} RUNNABLE} (\cc{yield}, timer)\\
+\cc{RUNNING \ra{} SLEEPING} (\cc{sleep}) \cc{\ra{} RUNNABLE} (\cc{wakeup}, \cc{kkill})\\
+\cc{RUNNING \ra{} ZOMBIE} (\cc{kexit}) \cc{\ra{} UNUSED} (parent \cc{kwait}: \cc{freeproc})
+
+\textbf{\cc{ls | wc} fd tables before exec:}\\
+\cc{parent: 0 tty 1 tty 2 tty} (p[0], p[1] closed)\\
+\cc{left:\ \ 0 tty \ \ 1 pipe-W 2 tty}\\
+\cc{right: 0 pipe-R 1 tty\ \ \ \ 2 tty}\\
+\cc{ls --fd1--> [pipe 512 B] --fd0--> wc}
+
+\textbf{Lost update:} T1 load 500; T2 load 500; both add \ra{} 501; T1 store 501; T2 store 501 \ra{} memory 501 after two increments.
+
+\textbf{Deadlock cycle:} one holds A, waits B; two holds B, waits A: \cc{one \ra{} B \ra{} two \ra{} A \ra{} one}.
+
+\textbf{Kernel switch, process P to Q:} P: \cc{yield} \ra{} \cc{sched} \ra{} \cc{swtch(P.ctx, cpu.ctx)} \ra{} \cc{scheduler} returns from its \cc{swtch}, \cc{release(P.lock)}, picks Q, \cc{acquire(Q.lock)} \ra{} \cc{swtch(cpu.ctx, Q.ctx)} \ra{} Q returns from its own old \cc{sched} \ra{} \cc{yield} releases Q.lock. Two \cc{swtch} per switch, always through the scheduler.
+
+\textbf{Syscall trap:} user \cc{ecall} \ra{} \cc{uservec} \ra{} \cc{usertrap} \ra{} \cc{syscall} \ra{} \cc{sys\_x} \ra{} \cc{prepare\_return} \ra{} \cc{userret} \ra{} \cc{sret} to user, result in \cc{a0}.
+
+\section{Predict-the-output traps}
+\begin{itemize}
+\item Anything printed without \cc{\textbackslash n} before \cc{fork} appears twice; into a pipe, even lines with \cc{\textbackslash n} do.
+\item \cc{printf("start\textbackslash n"); execlp(...)} into a pipe: \cc{start} lost (buffer discarded by exec). Fix \cc{fflush(stdout)}.
+\item Child changes a global \ra{} parent still sees the old value (copied memory). Threads \ra{} they see the change.
+\item Missing \cc{exit} after failed exec \ra{} child runs the parent's code too.
+\item Reader with its own write end open \ra{} never EOF (primes, leaked writer).
+\item xv6 trace line appears between \cc{hi} and \cc{\textbackslash n}: kernel prints after each syscall returns.
+\item Two xv6 processes printing \ra{} char-level interleaving (one \cc{write} per char).
+\end{itemize}
+
+\section{Ten facts}
+\small 1 child gets 0 from \cc{a0=0}. 2 exec never returns. 3 lowest free fd. 4 EOF needs all write ends closed. 5 \cc{a7} num, \cc{a0..a5} args, \cc{a0} result. 6 load/add/store. 7 sem 1/0/N. 8 \cc{while} not \cc{if}. 9 same lock order. 10 switch saves \cc{ra sp s0..s11}.
+\end{multicols*}
+\end{document}
