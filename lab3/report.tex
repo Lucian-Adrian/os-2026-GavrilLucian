@@ -145,7 +145,7 @@ Each line of \texttt{access.log} has five space-separated fields: date, time, us
 \shot{fig4_7.png}{Accounts per login shell}
 
 \section{Q8. Why do ls /etc | wc -l and ls -l /etc | wc -l differ by one?}
-\textbf{Prediction:} the long format adds one header line. \textbf{Result:} 210 against 211, and the extra line is \texttt{total 1064}, the number of 1~KiB blocks used by the listed entries. Every other line is one entry in both formats, so the difference is always exactly one.
+\textbf{Prediction:} the long format adds one header line. \textbf{Result:} 208 against 209, and the extra line is \texttt{total 1020}, the number of 1~KiB blocks used by the listed entries. Every other line is one entry in both formats, so the difference is always exactly one.
 \shot{fig4_8.png}{Line counts with and without -l}
 
 \section{Bonus: minute ending in 0 and failed}
